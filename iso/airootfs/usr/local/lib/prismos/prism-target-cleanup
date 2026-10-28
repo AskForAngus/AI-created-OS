@@ -39,7 +39,8 @@ rm -f /etc/systemd/system/prism-live-setup.service \
       /usr/share/icons/hicolor/scalable/apps/prismos-installer.svg \
       /etc/pacman.d/hooks/40-prismos-locale-gen.hook \
       /etc/sudoers.d/10-liveuser /etc/polkit-1/rules.d/49-liveuser.rules \
-      /etc/sddm.conf.d/50-live-autologin.conf
+      /etc/sddm.conf.d/50-live-autologin.conf \
+      /etc/xdg/reflector/reflector.conf.pacnew
 rm -rf /etc/calamares /usr/lib/calamares /usr/share/calamares
 
 # 4. pacman: colours and parallel downloads.

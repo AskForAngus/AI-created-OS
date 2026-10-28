@@ -58,6 +58,8 @@ jobs:
           echo "== Warnungen und Hinweise aus dem Build =="
           grep -aE -i "(^|[^a-z])(warning|error|fehler|hinweis|failed)[: ]" /mnt/prismos/build.log \
             | sed -E 's/^[0-9T:.Z-]+ //' | sort | uniq -c | sort -rn | head -150 || true
+          echo "== Fehlgeschlagene Hooks mit Kontext =="
+          grep -a -B12 "command failed to execute correctly" /mnt/prismos/build.log || echo "keine"
 
       - name: Boot-Test in QEMU (BIOS und UEFI)
         continue-on-error: true
@@ -65,14 +67,14 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq qemu-system-x86 ovmf socat imagemagick >/dev/null
           sudo chmod 666 /dev/kvm || true
-          bash scripts/boot-test.sh /mnt/prismos/out/prismos-*.iso /mnt/prismos/boot-test
+          bash scripts/boot-test.sh /mnt/prismos/out/prismos-*.iso "$RUNNER_TEMP/boot-test"
 
       - name: Boot-Test-Screenshots hochladen
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: boot-test-screenshots
-          path: /mnt/prismos/boot-test/*.png
+          path: ${{ runner.temp }}/boot-test/*.png
           if-no-files-found: ignore
 
       - name: ISO als Artefakt hochladen
