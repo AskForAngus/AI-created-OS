@@ -41,6 +41,7 @@ jobs:
         run: |
           version="$(date +%Y.%m.%d)"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then version="${GITHUB_REF#refs/tags/v}"; fi
+          set -o pipefail
           sudo docker run --rm --privileged \
             -v "$GITHUB_WORKSPACE:/src:ro" \
             -v /mnt/prismos/work:/work \
@@ -48,12 +49,31 @@ jobs:
             -e WORK_DIR=/work/build \
             -e PRISMOS_VERSION="$version" \
             archlinux:latest \
-            bash /src/scripts/build-iso.sh /out
+            bash /src/scripts/build-iso.sh /out 2>&1 | sudo tee /mnt/prismos/build.log
 
       - name: Ergebnis anzeigen
         run: |
           ls -lh /mnt/prismos/out
           cat /mnt/prismos/out/*.sha256
+          echo "== Warnungen und Hinweise aus dem Build =="
+          grep -aE -i "(^|[^a-z])(warning|error|fehler|hinweis|failed)[: ]" /mnt/prismos/build.log \
+            | sed -E 's/^[0-9T:.Z-]+ //' | sort | uniq -c | sort -rn | head -150 || true
+
+      - name: Boot-Test in QEMU (BIOS und UEFI)
+        continue-on-error: true
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-system-x86 ovmf socat imagemagick >/dev/null
+          sudo chmod 666 /dev/kvm || true
+          bash scripts/boot-test.sh /mnt/prismos/out/prismos-*.iso /mnt/prismos/boot-test
+
+      - name: Boot-Test-Screenshots hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-test-screenshots
+          path: /mnt/prismos/boot-test/*.png
+          if-no-files-found: ignore
 
       - name: ISO als Artefakt hochladen
         uses: actions/upload-artifact@v4
