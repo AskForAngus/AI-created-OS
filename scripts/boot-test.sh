@@ -4,12 +4,21 @@
 # as base64 between BEGIN-SCREENSHOT/END-SCREENSHOT markers in the CI log.
 #
 #   scripts/boot-test.sh ISO [OUT_DIR]
+#   scripts/boot-test.sh --disk DISK_IMAGE [OUT_DIR]   boot an installed system (BIOS)
 #
 # Needs: qemu-system-x86_64, socat, ImageMagick, OVMF (for UEFI).
 set -uo pipefail
 
-ISO=$1
-OUT=${2:-boot-test}
+DISK=""
+if [[ $1 == --disk ]]; then
+    DISK=$2
+    shift 2
+    ISO=""
+else
+    ISO=$1
+    shift
+fi
+OUT=${1:-boot-test}
 mkdir -p "$OUT"
 OVMF_CODE=$(ls /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd 2>/dev/null | head -1)
 OVMF_VARS=$(ls /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd 2>/dev/null | head -1)
@@ -58,6 +67,28 @@ boot() {  # mode
     wait "$pid" 2>/dev/null
 }
 
-boot bios
-boot uefi
+boot_disk() {
+    local mon=/tmp/prismos-qmon-disk
+    rm -f "$mon"
+    echo "== Boot-Test installiertes System =="
+    qemu-system-x86_64 "${accel[@]}" -m 4096 -smp 2 -vga virtio -display none \
+        -drive "file=$DISK,format=raw,if=virtio" -monitor "unix:$mon,server,nowait" \
+        -nic user,model=virtio-net-pci &
+    local pid=$!
+    sleep 5
+    shot "$mon" "installiert-1-grub"
+    sleep 115
+    shot "$mon" "installiert-2-start"
+    sleep 150
+    shot "$mon" "installiert-3-desktop"
+    kill "$pid" 2>/dev/null
+    wait "$pid" 2>/dev/null
+}
+
+if [[ -n $DISK ]]; then
+    boot_disk
+else
+    boot bios
+    boot uefi
+fi
 ls -l "$OUT"

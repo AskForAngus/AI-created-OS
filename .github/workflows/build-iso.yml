@@ -69,6 +69,17 @@ jobs:
           sudo chmod 666 /dev/kvm || true
           bash scripts/boot-test.sh /mnt/prismos/out/prismos-*.iso "$RUNNER_TEMP/boot-test"
 
+      - name: Installation simulieren und installiertes System booten
+        continue-on-error: true
+        run: |
+          sudo docker run --rm --privileged -v /dev:/dev -v /mnt/prismos:/mnt/prismos \
+            -v "$GITHUB_WORKSPACE:/src:ro" archlinux:latest \
+            bash /src/scripts/install-test.sh /mnt/prismos/out/prismos-*.iso /mnt/prismos/install-test
+          echo "INSTALL-TEST: Installation erfolgreich"
+          sudo chmod 666 /mnt/prismos/install-test/disk.img
+          bash scripts/boot-test.sh --disk /mnt/prismos/install-test/disk.img "$RUNNER_TEMP/boot-test"
+          sudo rm -f /mnt/prismos/install-test/disk.img
+
       - name: Boot-Test-Screenshots hochladen
         if: always()
         uses: actions/upload-artifact@v4
