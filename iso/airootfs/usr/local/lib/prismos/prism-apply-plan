@@ -65,8 +65,8 @@ def save(plan):
 
 def refresh_mirrors(plan):
     mirrorlist = Path("/etc/pacman.d/mirrorlist")
-    ok = run(["reflector", "--protocol", "https", "--latest", "20", "--sort", "rate",
-              "--download-timeout", "5", "--save", str(mirrorlist)]) == 0
+    ok = run(["reflector", "--protocol", "https", "--latest", "10", "--sort", "rate",
+              "--download-timeout", "3", "--save", str(mirrorlist)]) == 0
     has_server = any(l.startswith("Server") for l in mirrorlist.read_text().splitlines()) \
         if mirrorlist.exists() else False
     if not ok or not has_server:

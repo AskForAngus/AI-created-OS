@@ -179,6 +179,47 @@ def is_online():
         return False
 
 
+def run_with_progress(root, cmd):
+    """Run cmd in the target and turn its output into status messages, so the
+    installer shows what is being downloaded instead of standing still."""
+    pkg_total = 0
+    pkg_done = 0
+    progress = 0.15
+    try:
+        proc = subprocess.Popen(["chroot", root, *cmd], stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1)
+    except OSError as exc:
+        warning(f"prismapps: {exc}")
+        return target_env_call(cmd)
+    for line in proc.stdout:
+        line = line.rstrip()
+        if not line:
+            continue
+        debug(f"prism-apply-plan: {line}")
+        if "$ reflector" in line:
+            progress, msg = 0.18, "Die schnellsten Paketserver werden gesucht …"
+        elif "$ pacman-key" in line:
+            progress, msg = 0.25, "Paketschlüssel werden eingerichtet …"
+        elif "$ pacman -Sy " in line:
+            progress, msg = 0.3, "Paketlisten werden geladen …"
+        elif line.startswith("Packages ("):
+            pkg_total = int(line.split("(", 1)[1].split(")", 1)[0] or 0)
+            progress, msg = 0.35, f"{pkg_total} Pakete werden heruntergeladen …"
+        elif line.startswith("installing ") or line.startswith("upgrading "):
+            pkg_done += 1
+            name = line.split()[1].rstrip(".")
+            share = pkg_done / pkg_total if pkg_total else 0.5
+            progress = 0.4 + 0.4 * min(share, 1.0)
+            msg = f"Installiere {name} ({pkg_done}/{pkg_total or '?'}) …"
+        elif "$ flatpak install" in line:
+            progress = max(progress, 0.82)
+            msg = f"Flatpak {line.split()[-1]} wird installiert (beim ersten Mal etwas länger) …"
+        else:
+            continue
+        set_status(msg, progress)
+    return proc.wait()
+
+
 def run():
     gs = libcalamares.globalstorage
     root = gs.value("rootMountPoint")
@@ -238,7 +279,7 @@ def run():
         warning(f"prismapps: resolv.conf: {exc}")
 
     set_status("Programme und Treiber werden heruntergeladen und installiert …", 0.15)
-    rc = target_env_call(["/usr/local/lib/prismos/prism-apply-plan"])
+    rc = run_with_progress(root, ["/usr/local/lib/prismos/prism-apply-plan"])
     debug(f"prismapps: prism-apply-plan beendet mit {rc}")
 
     resolv.unlink(missing_ok=True)
