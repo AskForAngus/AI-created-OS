@@ -33,23 +33,6 @@ shot() {  # monitor-socket name
     fi
 }
 
-monitor() {  # socket, command
-    echo "$2" | socat - "UNIX-CONNECT:$1" >/dev/null
-}
-
-type_text() {  # socket, text – types into the VM via QEMU sendkey
-    local i c key
-    for ((i = 0; i < ${#2}; i++)); do
-        c=${2:i:1}
-        case $c in
-            " ") key=spc ;; "=") key=equal ;; ",") key=comma ;; ".") key=dot ;;
-            "_") key=shift-minus ;; "-") key=minus ;; *) key=$c ;;
-        esac
-        monitor "$1" "sendkey $key"
-        sleep 0.08
-    done
-}
-
 boot() {  # mode
     local mode=$1 mon="/tmp/prismos-qmon-$1" firmware=()
     rm -f "$mon"
@@ -62,32 +45,17 @@ boot() {  # mode
     echo "== Boot-Test $mode =="
     qemu-system-x86_64 "${accel[@]}" -m 4096 -smp 2 -vga virtio -display none \
         -cdrom "$ISO" -boot d -monitor "unix:$mon,server,nowait" \
-        -serial "file:$OUT/$mode-serial.log" \
         -nic user,model=virtio-net-pci "${firmware[@]}" &
     local pid=$!
+    # Without GPU acceleration Plasma renders in software, so give it time.
     sleep 6
     shot "$mon" "$mode-1-bootmenue"
-    # Add a serial console to the default boot entry so the boot log can be read.
-    if [[ $mode == uefi ]]; then
-        monitor "$mon" "sendkey e"; sleep 1; monitor "$mon" "sendkey end"
-    else
-        monitor "$mon" "sendkey tab"; sleep 1
-    fi
-    type_text "$mon" " console=tty0 console=ttyS0,115200"
-    monitor "$mon" "sendkey ret"
-    sleep 40
-    shot "$mon" "$mode-2-nach-40s"
-    sleep 110
-    shot "$mon" "$mode-3-live-desktop"
-    sleep 60
-    shot "$mon" "$mode-4-installer"
+    sleep 54
+    shot "$mon" "$mode-2-start"
+    sleep 180
+    shot "$mon" "$mode-3-live-desktop-installer"
     kill "$pid" 2>/dev/null
     wait "$pid" 2>/dev/null
-    echo "== Serielle Konsole $mode (Auszug) =="
-    grep -a -iE "error|fail|panic|warn|archiso|mount|Reached target|Started .*(sddm|Display|PrismOS)" \
-        "$OUT/$mode-serial.log" | head -80
-    echo "== Serielle Konsole $mode (Ende) =="
-    tail -n 40 "$OUT/$mode-serial.log"
 }
 
 boot bios

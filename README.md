@@ -29,6 +29,9 @@ Die ISO wird automatisch von GitHub Actions gebaut:
 
 Prüfen (optional): `sha256sum -c prismos-*.iso.sha256`
 
+Jeder Build startet die ISO automatisch in einer virtuellen Maschine (BIOS und UEFI). Die
+Screenshots von Bootmenü, Live-Desktop und Installer liegen im Artefakt **boot-test-screenshots**.
+
 ## Installieren
 
 1. ISO auf einen USB-Stick schreiben (mindestens 4 GB), z. B. mit
