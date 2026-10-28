@@ -25,11 +25,16 @@ done
 rm -f /etc/mkinitcpio.conf.d/archiso.conf
 
 # 2. Packages that only make sense on the live medium.
+# One transaction, so the kernel hooks rebuild the initramfs only once.
+live_pkgs=()
 for pkg in calamares mkinitcpio-archiso syslinux memtest86+ memtest86+-efi arch-install-scripts squashfs-tools; do
-    if pacman -Q "$pkg" &>/dev/null; then
-        pacman -Rns --noconfirm "$pkg" || pacman -Rdd --noconfirm "$pkg" || log "konnte $pkg nicht entfernen"
-    fi
+    pacman -Q "$pkg" &>/dev/null && live_pkgs+=("$pkg")
 done
+if (( ${#live_pkgs[@]} )) && ! pacman -Rns --noconfirm "${live_pkgs[@]}"; then
+    for pkg in "${live_pkgs[@]}"; do
+        pacman -Rns --noconfirm "$pkg" || pacman -Rdd --noconfirm "$pkg" || log "konnte $pkg nicht entfernen"
+    done
+fi
 
 # 3. Live-only files.
 rm -f /etc/systemd/system/prism-live-setup.service \
