@@ -41,11 +41,11 @@ echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
 cp -r "$REPO/packages/calamares" "$WORK/pkgbuild/"
 chown -R builder: "$WORK/pkgbuild"
 (cd "$WORK/pkgbuild/calamares" && sudo -u builder MAKEFLAGS="-j$(nproc)" makepkg -s --noconfirm --needed)
-cp "$WORK"/pkgbuild/calamares/*.pkg.tar.zst "$WORK/localrepo/"
+cp "$WORK"/pkgbuild/calamares/calamares-[0-9]*.pkg.tar.zst "$WORK/localrepo/"
 repo-add "$WORK/localrepo/prismos-local.db.tar.gz" "$WORK"/localrepo/*.pkg.tar.zst
 
 log "Calamares-Module prüfen"
-modules=$(bsdtar -tf "$WORK"/localrepo/calamares-*.pkg.tar.zst | sed -n 's#^usr/lib/calamares/modules/\([^/]*\)/$#\1#p' | sort -u)
+modules=$(bsdtar -tf "$WORK"/localrepo/calamares-[0-9]*.pkg.tar.zst | sed -n 's#^usr/lib/calamares/modules/\([^/]*\)/$#\1#p' | sort -u)
 echo "$modules" | tr '\n' ' '; echo
 for m in partition netinstall users unpackfs bootloader grubcfg displaymanager services-systemd shellprocess; do
     grep -qx "$m" <<<"$modules" || { echo "Calamares-Modul fehlt: $m" >&2; exit 1; }

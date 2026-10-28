@@ -8,6 +8,7 @@ pkgdesc='Distribution-independent installer framework (PrismOS build)'
 arch=('x86_64')
 url='https://calamares.io'
 license=('GPL-3.0-or-later')
+options=('!debug')
 depends=(
   'qt6-base' 'qt6-declarative' 'qt6-svg'
   'kcoreaddons' 'kconfig' 'ki18n' 'kcrash' 'kdbusaddons' 'kpackage' 'libplasma'
