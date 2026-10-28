@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Prism Looks
+GenericName=Design-Studio
+Comment=Looks auswählen, selbst gestalten, speichern und teilen
+Exec=/usr/local/bin/prism-looks
+Icon=prismos-looks
+Categories=Qt;KDE;Settings;DesktopSettings;
+Keywords=Design;Theme;Look;Aussehen;Windows;macOS;Ubuntu;GNOME;Personalisierung;

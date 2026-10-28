@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=PrismOS – erster Start
+Comment=Vervollständigt den gewählten Look und begrüßt dich
+Exec=/usr/local/bin/prism-looks --firstrun
+Icon=prismos-looks
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2
+NoDisplay=true

@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "PrismOS"
+            }
+        ],
+        "Category": "",
+        "Description": "Der PrismOS-Standard: dunkel, schwebendes Dock in der Mitte, violetter Akzent.",
+        "Id": "org.prismos.prism.desktop",
+        "License": "GPL-2.0-or-later",
+        "Name": "PrismOS",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-APIVersion": "2"
+}

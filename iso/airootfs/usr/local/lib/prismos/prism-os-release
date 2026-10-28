@@ -1,0 +1,15 @@
+#!/bin/sh
+# Write the PrismOS identity to os-release (called by a pacman hook).
+cat > /usr/lib/os-release <<'END'
+NAME="PrismOS"
+PRETTY_NAME="PrismOS"
+ID=prismos
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;124;92;255"
+HOME_URL="https://github.com/AskForAngus/AI-created-OS"
+DOCUMENTATION_URL="https://github.com/AskForAngus/AI-created-OS#readme"
+SUPPORT_URL="https://github.com/AskForAngus/AI-created-OS/issues"
+BUG_REPORT_URL="https://github.com/AskForAngus/AI-created-OS/issues"
+LOGO=prismos
+END

@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "PrismOS"
+            }
+        ],
+        "Category": "",
+        "Description": "Schlanke obere Leiste mit App-Übersicht, nur Schließen-Knopf, ausblendendes Dock.",
+        "Id": "org.prismos.gnome.desktop",
+        "License": "GPL-2.0-or-later",
+        "Name": "GNOME-Stil",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-APIVersion": "2"
+}

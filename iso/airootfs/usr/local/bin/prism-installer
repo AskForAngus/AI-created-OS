@@ -1,0 +1,10 @@
+#!/bin/sh
+# Start the Calamares installer as root inside the live Wayland session.
+# The Wayland socket is passed as an absolute path so it is still found when
+# Qt (running as root) picks a different XDG_RUNTIME_DIR.
+if [ -n "$WAYLAND_DISPLAY" ] && [ "${WAYLAND_DISPLAY#/}" = "$WAYLAND_DISPLAY" ]; then
+    WAYLAND_DISPLAY="$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+    export WAYLAND_DISPLAY
+fi
+exec sudo --preserve-env=WAYLAND_DISPLAY,XDG_RUNTIME_DIR,DISPLAY,XAUTHORITY,QT_QPA_PLATFORM,LANG,LANGUAGE \
+    /usr/bin/calamares "$@"

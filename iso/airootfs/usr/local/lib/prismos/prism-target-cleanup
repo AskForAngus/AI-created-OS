@@ -1,0 +1,64 @@
+#!/bin/bash
+# Turn the copied live system into a regular installation.
+# Runs inside the target (chroot) from the Calamares shellprocess@prism-cleanup step.
+set -uo pipefail
+
+log() { echo "[prism-cleanup] $*"; }
+
+# 1. Kernels: archiso empties /boot, every kernel package also keeps its image in /usr/lib/modules.
+for moddir in /usr/lib/modules/*/; do
+    [[ -f "$moddir/pkgbase" && -f "$moddir/vmlinuz" ]] || continue
+    pkgbase=$(<"$moddir/pkgbase")
+    install -Dm644 "$moddir/vmlinuz" "/boot/vmlinuz-$pkgbase"
+    log "Kernel $pkgbase eingerichtet"
+    # Regular presets: one image per kernel, the LTS kernel itself is the fallback.
+    cat > "/etc/mkinitcpio.d/$pkgbase.preset" <<EOF
+# mkinitcpio preset file for the '$pkgbase' package
+
+ALL_kver="/boot/vmlinuz-$pkgbase"
+
+PRESETS=('default')
+
+default_image="/boot/initramfs-$pkgbase.img"
+EOF
+done
+rm -f /etc/mkinitcpio.conf.d/archiso.conf
+
+# 2. Packages that only make sense on the live medium.
+for pkg in calamares mkinitcpio-archiso syslinux memtest86+ memtest86+-efi arch-install-scripts squashfs-tools; do
+    if pacman -Q "$pkg" &>/dev/null; then
+        pacman -Rns --noconfirm "$pkg" || pacman -Rdd --noconfirm "$pkg" || log "konnte $pkg nicht entfernen"
+    fi
+done
+
+# 3. Live-only files.
+rm -f /etc/systemd/system/prism-live-setup.service \
+      /etc/systemd/system/multi-user.target.wants/prism-live-setup.service \
+      /usr/local/bin/prism-live-setup /usr/local/bin/prism-installer \
+      /usr/share/applications/prism-installer.desktop \
+      /usr/share/icons/hicolor/scalable/apps/prismos-installer.svg \
+      /etc/pacman.d/hooks/40-prismos-locale-gen.hook \
+      /etc/sudoers.d/10-liveuser /etc/polkit-1/rules.d/49-liveuser.rules \
+      /etc/sddm.conf.d/50-live-autologin.conf
+rm -rf /etc/calamares /usr/lib/calamares /usr/share/calamares
+
+# 4. pacman: colours and parallel downloads.
+sed -i -e 's/^#Color$/Color/' -e 's/^#\?ParallelDownloads.*/ParallelDownloads = 8/' /etc/pacman.conf
+
+# 5. Intel CPUs: thermald keeps them cool without throttling too early.
+if grep -q GenuineIntel /proc/cpuinfo; then
+    systemctl enable thermald.service
+else
+    pacman -Rns --noconfirm thermald &>/dev/null || true
+fi
+
+# 6. Initramfs for the installed system.
+rc=0
+if ! mkinitcpio -P; then
+    log "mkinitcpio ist fehlgeschlagen"
+    rc=1
+fi
+
+log "fertig"
+rm -f -- "$0"
+exit "$rc"

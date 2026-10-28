@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "PrismOS"
+            }
+        ],
+        "Category": "",
+        "Description": "Startmenü links, Taskleiste über die volle Breite, Uhr mit Datum unten rechts.",
+        "Id": "org.prismos.win7.desktop",
+        "License": "GPL-2.0-or-later",
+        "Name": "Klassisch (Windows 7-Stil)",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-APIVersion": "2"
+}

@@ -1,0 +1,10 @@
+[Unit]
+Description=PrismOS: ausstehende Programme regelmäßig nachinstallieren
+ConditionPathExists=/var/lib/prismos/plan.json
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+
+[Install]
+WantedBy=timers.target

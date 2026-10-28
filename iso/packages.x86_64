@@ -1,0 +1,109 @@
+# PrismOS – Pakete des Live-Systems (und damit der Grundinstallation).
+# Bewusst schlank: nur was ein Desktop wirklich braucht. Alles Weitere
+# wählst du im Installer aus.
+
+# --- Basis & Kernel (Zen für flüssigen Desktop, LTS als Notfall-Kernel)
+base
+linux-zen
+linux-lts
+linux-firmware
+sof-firmware
+alsa-ucm-conf
+intel-ucode
+amd-ucode
+mkinitcpio
+sudo
+nano
+bash-completion
+pacman-contrib
+reflector
+python
+pciutils
+usbutils
+
+# --- Bootloader & Dateisysteme
+grub
+efibootmgr
+os-prober
+btrfs-progs
+dosfstools
+e2fsprogs
+exfatprogs
+f2fs-tools
+ntfs-3g
+xfsprogs
+
+# --- Akku & Leistung
+power-profiles-daemon
+switcheroo-control
+thermald
+zram-generator
+
+# --- Netzwerk & Bluetooth
+networkmanager
+bluez
+bluez-utils
+
+# --- Audio
+pipewire
+pipewire-alsa
+pipewire-jack
+pipewire-pulse
+wireplumber
+
+# --- Grafik (offene Treiber für Intel, AMD, NVIDIA/nouveau, VMs)
+mesa
+vulkan-intel
+vulkan-radeon
+vulkan-nouveau
+intel-media-driver
+xorg-server
+
+# --- KDE Plasma (minimal, ohne die "plasma"-Sammlung)
+plasma-desktop
+plasma-nm
+plasma-pa
+powerdevil
+bluedevil
+kscreen
+kinfocenter
+plasma-systemmonitor
+kdeplasma-addons
+kde-gtk-config
+breeze-gtk
+xdg-desktop-portal-kde
+qt6-wayland
+kwallet-pam
+sddm
+sddm-kcm
+
+# --- Personalisierung
+kvantum
+python-pyqt6
+noto-fonts
+noto-fonts-emoji
+ttf-liberation
+inter-font
+
+# --- Software & Flatpak
+discover
+packagekit-qt6
+flatpak
+
+# --- Unverzichtbare Programme
+dolphin
+kio-extras
+konsole
+kate
+ark
+spectacle
+
+# --- Nur für das Live-Medium (werden bei der Installation entfernt)
+calamares
+mkinitcpio-archiso
+syslinux
+memtest86+
+memtest86+-efi
+arch-install-scripts
+rsync
+squashfs-tools

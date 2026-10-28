@@ -1,0 +1,186 @@
+# PrismOS – Programmauswahl im Installer
+# Nichts ist vorausgewählt. "flathub:<App-ID>" = Flatpak von Flathub,
+# alles andere = Paket aus den Arch-Linux-Paketquellen.
+# Sprachpakete (z. B. Firefox auf Deutsch) werden automatisch ergänzt.
+
+- name: "Browser"
+  description: "Zum Surfen im Internet"
+  selected: false
+  expanded: true
+  packages:
+    - name: firefox
+      description: "Firefox – schnell, unabhängig und datenschutzfreundlich"
+    - name: chromium
+      description: "Chromium – die offene Basis von Google Chrome"
+    - name: vivaldi
+      description: "Vivaldi – Browser mit sehr vielen Einstellmöglichkeiten"
+    - name: flathub:com.brave.Browser
+      description: "Brave – mit eingebautem Werbe- und Tracking-Blocker (Flathub)"
+    - name: flathub:com.google.Chrome
+      description: "Google Chrome (Flathub)"
+    - name: torbrowser-launcher
+      description: "Tor Browser – anonym surfen"
+
+- name: "Kommunikation"
+  description: "E-Mail, Messenger und Videokonferenzen"
+  selected: false
+  expanded: true
+  packages:
+    - name: thunderbird
+      description: "Thunderbird – E-Mail, Kalender und Kontakte"
+    - name: signal-desktop
+      description: "Signal – verschlüsselter Messenger"
+    - name: telegram-desktop
+      description: "Telegram"
+    - name: discord
+      description: "Discord – Sprach- und Text-Chat"
+    - name: element-desktop
+      description: "Element – Matrix-Messenger"
+    - name: flathub:com.rtosta.zapzap
+      description: "ZapZap – WhatsApp für den Desktop (Flathub)"
+    - name: flathub:us.zoom.Zoom
+      description: "Zoom – Videokonferenzen (Flathub)"
+    - name: flathub:com.slack.Slack
+      description: "Slack (Flathub)"
+    - name: flathub:com.github.IsmaelMartinez.teams_for_linux
+      description: "Microsoft Teams (inoffizieller Client, Flathub)"
+
+- name: "Office"
+  description: "Dokumente, Tabellen, PDFs und Notizen"
+  selected: false
+  expanded: true
+  packages:
+    - name: libreoffice-fresh
+      description: "LibreOffice – Textverarbeitung, Tabellen, Präsentationen"
+    - name: flathub:org.onlyoffice.desktopeditors
+      description: "OnlyOffice – sehr gut mit Microsoft-Office-Dateien (Flathub)"
+    - name: okular
+      description: "Okular – PDF- und Dokumentbetrachter"
+    - name: xournalpp
+      description: "Xournal++ – PDFs beschriften, handschriftliche Notizen"
+    - name: obsidian
+      description: "Obsidian – Notizen und Wissensdatenbank"
+    - name: kcalc
+      description: "KCalc – Taschenrechner"
+
+- name: "Medien"
+  description: "Musik, Videos, Bilder und Kreatives"
+  selected: false
+  expanded: true
+  packages:
+    - name: vlc
+      description: "VLC – spielt so gut wie jedes Video- und Audioformat"
+    - name: mpv
+      description: "mpv – schlanker, schneller Videoplayer"
+    - name: elisa
+      description: "Elisa – Musikplayer"
+    - name: gwenview
+      description: "Gwenview – Bildbetrachter"
+    - name: flathub:com.spotify.Client
+      description: "Spotify (Flathub)"
+    - name: gimp
+      description: "GIMP – Bildbearbeitung"
+    - name: krita
+      description: "Krita – digitales Malen und Zeichnen"
+    - name: inkscape
+      description: "Inkscape – Vektorgrafik"
+    - name: kdenlive
+      description: "Kdenlive – Videoschnitt"
+    - name: obs-studio
+      description: "OBS Studio – Bildschirmaufnahme und Streaming"
+    - name: audacity
+      description: "Audacity – Audiobearbeitung"
+    - name: handbrake
+      description: "HandBrake – Videos umwandeln"
+
+- name: "Entwicklung"
+  description: "Editoren, Sprachen und Container"
+  selected: false
+  expanded: true
+  packages:
+    - name: code
+      description: "Code – OSS (Visual Studio Code ohne Microsoft-Telemetrie)"
+    - name: flathub:com.visualstudio.code
+      description: "Visual Studio Code von Microsoft (Flathub)"
+    - name: git
+      description: "Git – Versionsverwaltung"
+    - name: base-devel
+      description: "Compiler und Werkzeuge zum Bauen von Software (auch für das AUR)"
+    - name: python-pip
+      description: "Python-Paketverwaltung pip (Python ist bereits installiert)"
+    - name: nodejs
+      description: "Node.js"
+    - name: npm
+      description: "npm – Paketverwaltung für Node.js"
+    - name: rustup
+      description: "Rust (über rustup)"
+    - name: go
+      description: "Go"
+    - name: jdk-openjdk
+      description: "Java (OpenJDK)"
+    - name: docker
+      description: "Docker – Container (dein Benutzer wird automatisch berechtigt)"
+    - name: docker-compose
+      description: "Docker Compose"
+    - name: podman
+      description: "Podman – Container ohne Root-Dienst"
+    - name: distrobox
+      description: "Distrobox – andere Linux-Distributionen im Container"
+    - name: neovim
+      description: "Neovim – Editor im Terminal"
+    - name: flathub:com.jetbrains.IntelliJ-IDEA-Community
+      description: "IntelliJ IDEA Community (Flathub)"
+    - name: flathub:com.jetbrains.PyCharm-Community
+      description: "PyCharm Community (Flathub)"
+
+- name: "System & Werkzeuge"
+  description: "Nützliche Helfer – nur wenn du sie brauchst"
+  selected: false
+  expanded: false
+  packages:
+    - name: cups
+      description: "Drucken (Druckdienst)"
+    - name: print-manager
+      description: "Drucker einrichten in den Systemeinstellungen"
+    - name: kdeconnect
+      description: "KDE Connect – Smartphone mit dem PC verbinden"
+    - name: partitionmanager
+      description: "KDE-Partitionsverwaltung"
+    - name: filelight
+      description: "Filelight – zeigt, was die Festplatte füllt"
+    - name: timeshift
+      description: "Timeshift – Systemsicherungen"
+    - name: ufw
+      description: "Firewall (ufw)"
+    - name: plasma-firewall
+      description: "Firewall-Einstellungen in den Systemeinstellungen"
+    - name: openssh
+      description: "SSH – Fernzugriff auf andere Rechner (Server wird nicht gestartet)"
+    - name: btop
+      description: "btop – Systemmonitor im Terminal"
+    - name: fastfetch
+      description: "fastfetch – Systeminfos im Terminal"
+    - name: ffmpegthumbs
+      description: "Vorschaubilder für Videos im Dateimanager"
+    - name: kdegraphics-thumbnailers
+      description: "Vorschaubilder für PDFs und Bilder im Dateimanager"
+    - name: kwalletmanager
+      description: "Passwortspeicher (KWallet) verwalten"
+    - name: noto-fonts-cjk
+      description: "Schriften für Chinesisch, Japanisch und Koreanisch"
+    - name: plasma-x11-session
+      description: "X11-Sitzung für sehr alte Programme oder Grafikkarten"
+
+- name: "Design-Extras"
+  description: "Noch mehr Material zum Gestalten"
+  selected: false
+  expanded: false
+  packages:
+    - name: papirus-icon-theme
+      description: "Papirus – beliebtes Symbol-Design"
+    - name: plasma-workspace-wallpapers
+      description: "Zusätzliche Hintergrundbilder von KDE"
+    - name: oxygen
+      description: "Oxygen – klassischer KDE-Stil"
+    - name: oxygen-icons
+      description: "Oxygen-Symbole"

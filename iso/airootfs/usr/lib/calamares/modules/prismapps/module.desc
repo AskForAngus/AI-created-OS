@@ -1,0 +1,7 @@
+# PrismOS: install the programs picked in the netinstall page, hardware drivers
+# and the chosen look. Delegates the actual work to prism-apply-plan in the target.
+---
+type:       "job"
+name:       "prismapps"
+interface:  "python"
+script:     "main.py"

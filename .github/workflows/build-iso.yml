@@ -1,0 +1,95 @@
+name: PrismOS-ISO bauen
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    tags: ["v*"]
+    paths:
+      - "iso/**"
+      - "packages/**"
+      - "scripts/**"
+      - ".github/workflows/build-iso.yml"
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Als GitHub-Release veröffentlichen"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: iso-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Speicherplatz freigeben
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune --all --force
+          sudo mkdir -p /mnt/prismos/work /mnt/prismos/out
+          df -h / /mnt
+
+      - name: ISO im Arch-Linux-Container bauen
+        run: |
+          version="$(date +%Y.%m.%d)"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then version="${GITHUB_REF#refs/tags/v}"; fi
+          sudo docker run --rm --privileged \
+            -v "$GITHUB_WORKSPACE:/src:ro" \
+            -v /mnt/prismos/work:/work \
+            -v /mnt/prismos/out:/out \
+            -e WORK_DIR=/work/build \
+            -e PRISMOS_VERSION="$version" \
+            archlinux:latest \
+            bash /src/scripts/build-iso.sh /out
+
+      - name: Ergebnis anzeigen
+        run: |
+          ls -lh /mnt/prismos/out
+          cat /mnt/prismos/out/*.sha256
+
+      - name: ISO als Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: prismos-iso
+          path: /mnt/prismos/out/prismos-*
+          compression-level: 0
+          retention-days: 14
+
+      - name: Für Release vorbereiten (Dateien > 2 GiB werden geteilt)
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release
+        run: |
+          mkdir -p /mnt/prismos/release
+          cd /mnt/prismos/out
+          for f in prismos-*.iso; do
+            if [ "$(stat -c %s "$f")" -gt 2000000000 ]; then
+              split -b 1900M -d "$f" "/mnt/prismos/release/$f.part"
+            else
+              cp "$f" /mnt/prismos/release/
+            fi
+            cp "$f.sha256" /mnt/prismos/release/
+          done
+          ls -lh /mnt/prismos/release
+
+      - name: GitHub-Release veröffentlichen
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build-{0}', github.run_number) }}
+          name: PrismOS ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('Build {0}', github.run_number) }}
+          files: /mnt/prismos/release/*
+          body: |
+            PrismOS – Live- und Installationsmedium (x86_64, BIOS und UEFI).
+
+            Falls die ISO in Teile (`.part00`, `.part01`, …) aufgeteilt ist, zuerst zusammenfügen –
+            der Name muss dem in der `.sha256`-Datei entsprechen:
+            Linux/macOS: `cat NAME.iso.part* > NAME.iso` ·
+            Windows: `copy /b NAME.iso.part00 + NAME.iso.part01 NAME.iso`.
+            Prüfen mit `sha256sum -c NAME.iso.sha256`.
