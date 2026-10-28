@@ -21,6 +21,7 @@ import time
 from pathlib import Path
 
 PLAN = Path("/var/lib/prismos/plan.json")
+MAX_ATTEMPTS = 50  # the timer retries every 15 minutes; give up on what never works
 FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 FALLBACK_MIRRORS = """\
 # PrismOS fallback mirror list (reflector could not be run)
@@ -146,6 +147,12 @@ def main():
     if not PLAN.exists():
         return 0
     plan = json.loads(PLAN.read_text())
+    plan["attempts"] = plan.get("attempts", 0) + 1
+    if plan["attempts"] > MAX_ATTEMPTS:
+        log("gebe auf, nicht installiert: " + json.dumps(plan))
+        PLAN.rename(PLAN.with_suffix(".failed.json"))
+        run(["systemctl", "disable", "prism-pending-apps.timer"])
+        return 1
 
     deadline = time.monotonic() + args.wait_online
     while not online() and time.monotonic() < deadline:
@@ -161,10 +168,9 @@ def main():
     else:
         log("keine Internetverbindung – Programme werden später installiert")
 
-    # Packages may have just been installed: units and groups exist only now.
-    if not plan.get("pacman"):
-        enable_services(plan)
-        add_groups(plan)
+    # Units and groups appear with their packages; what fails now is retried next time.
+    enable_services(plan)
+    add_groups(plan)
 
     done = save(plan)
     timer = "prism-pending-apps.timer"
