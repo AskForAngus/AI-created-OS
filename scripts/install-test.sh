@@ -98,6 +98,7 @@ for unit in NetworkManager.service sddm.service bluetooth.service power-profiles
     in_target systemctl enable "$unit"
 done
 # Autologin as offered by the Calamares users page, so the boot test reaches the desktop.
+mkdir -p "$TARGET/etc/sddm.conf.d"
 printf '[Autologin]\nUser=%s\nSession=plasma\n' "$USER_NAME" > "$TARGET/etc/sddm.conf.d/90-autologin.conf"
 
 log "prism-target-cleanup"

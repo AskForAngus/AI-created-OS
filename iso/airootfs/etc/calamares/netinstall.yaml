@@ -176,6 +176,8 @@
   selected: false
   expanded: false
   packages:
+    - name: kdeplasma-addons
+      description: "Zusätzliche Plasma-Widgets: Wetter, Notizen, Farbwähler, Wörterbuch und mehr"
     - name: papirus-icon-theme
       description: "Papirus – beliebtes Symbol-Design"
     - name: plasma-workspace-wallpapers

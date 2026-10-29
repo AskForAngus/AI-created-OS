@@ -165,6 +165,10 @@ pacman --root "$WORK/iso/x86_64/airootfs" --dbpath "$WORK/iso/x86_64/airootfs/va
         split($2, a, " "); s=a[1]; u=a[2]
         if (u ~ /KiB/) s/=1024; else if (u ~ /GiB/) s*=1024; else if (u ~ /B$/ && u !~ /MiB/) s/=1048576
         printf "%8.1f MiB  %s\n", s, n }' | sort -rn | head -40 || true
+for big in qt6-webengine llvm-libs perl boost-libs gtk3; do
+    pacman --root "$WORK/iso/x86_64/airootfs" --dbpath "$WORK/iso/x86_64/airootfs/var/lib/pacman" -Qi "$big" 2>/dev/null |
+        sed -n "s/^Required By *: */$big wird gebraucht von: /p"
+done
 
 cd "$OUT"
 for iso in prismos-*.iso; do

@@ -74,7 +74,7 @@ jobs:
           bash scripts/boot-test.sh /mnt/prismos/out/prismos-*.iso "$RUNNER_TEMP/boot-test"
 
       - name: Installation simulieren und installiertes System booten
-        continue-on-error: true
+        if: always()
         run: |
           sudo docker run --rm --privileged -v /dev:/dev -v /mnt/prismos:/mnt/prismos \
             -v "$GITHUB_WORKSPACE:/src:ro" archlinux:latest \
@@ -85,7 +85,7 @@ jobs:
           sudo rm -f /mnt/prismos/install-test/disk.img
 
       - name: Verschlüsselte UEFI-Installation simulieren und booten (Btrfs, Snapshots, Secure Boot)
-        continue-on-error: true
+        if: always()
         run: |
           sudo docker run --rm --privileged -v /dev:/dev -v /mnt/prismos:/mnt/prismos \
             -v "$GITHUB_WORKSPACE:/src:ro" archlinux:latest \
@@ -106,6 +106,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: ISO als Artefakt hochladen
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: prismos-iso
