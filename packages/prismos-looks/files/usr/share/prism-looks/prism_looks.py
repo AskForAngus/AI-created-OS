@@ -215,6 +215,17 @@ def apply_style(preset):
     kwrite("kdeglobals", "General", "smallestReadableFont", small)
     kwrite("kdeglobals", "WM", "activeFont", font)
 
+    theme = preset.get("plasmaTheme", "default")
+    if have("plasma-apply-desktoptheme"):
+        run(["plasma-apply-desktoptheme", theme])
+    kwrite("plasmarc", "Theme", "name", theme)
+
+    # Optional Kvantum theme: used only if it is installed, otherwise Breeze.
+    kvantum = next((k for k in preset.get("kvantum", []) if Path(f"/usr/share/Kvantum/{k}").is_dir()), None)
+    if kvantum:
+        kwrite("Kvantum/kvantum.kvconfig", "General", "theme", kvantum)
+    kwrite("kdeglobals", "KDE", "widgetStyle", "kvantum" if kvantum else "Breeze")
+
     kwrite("kwinrc", "org.kde.kdecoration2", "library", "org.kde.breeze")
     kwrite("kwinrc", "org.kde.kdecoration2", "theme", "Breeze")
     kwrite("kwinrc", "org.kde.kdecoration2", "ButtonsOnLeft", preset["buttonsLeft"])
@@ -386,6 +397,136 @@ def delete_look(path):
     shutil.rmtree(path)
 
 
+# --------------------------------------------------------------------------- light/dark switching
+
+AUTO_THEME = STATE_DIR / "auto-theme.json"
+AUTO_THEME_DEFAULTS = {"enabled": False, "mode": "times", "light": "07:00", "dark": "19:00",
+                       "lightScheme": "BreezeLight", "darkScheme": "BreezeDark", "current": ""}
+
+
+def load_auto_theme():
+    try:
+        return {**AUTO_THEME_DEFAULTS, **json.loads(AUTO_THEME.read_text())}
+    except (OSError, ValueError):
+        return dict(AUTO_THEME_DEFAULTS)
+
+
+def save_auto_theme(cfg):
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    AUTO_THEME.write_text(json.dumps(cfg, indent=2))
+    action = "enable" if cfg["enabled"] else "disable"
+    run(["systemctl", "--user", action, "--now", "prism-auto-theme.timer"])
+
+
+def zone_coordinates():
+    """Latitude/longitude of the configured time zone (from tzdata, no location access)."""
+    try:
+        zone = os.path.realpath("/etc/localtime").split("/zoneinfo/", 1)[1]
+        for line in Path("/usr/share/zoneinfo/zone1970.tab").read_text().splitlines():
+            parts = line.split("\t")
+            if not line.startswith("#") and len(parts) > 2 and parts[2] == zone:
+                m = re.match(r"([+-]\d{2})(\d{2})(\d{2})?([+-]\d{3})(\d{2})(\d{2})?", parts[1])
+                lat = int(m.group(1)) + (1 if m.group(1)[0] == "+" else -1) * (int(m.group(2)) / 60)
+                lon = int(m.group(4)) + (1 if m.group(4)[0] == "+" else -1) * (int(m.group(5)) / 60)
+                return lat, lon
+    except (OSError, IndexError, AttributeError):
+        pass
+    return 51.0, 10.0  # middle of Germany
+
+
+def sun_times(day, lat, lon):
+    """Local sunrise and sunset (datetime) using the NOAA approximation."""
+    import math
+    n = day.timetuple().tm_yday
+    gamma = 2 * math.pi / 365 * (n - 1)
+    eqtime = 229.18 * (0.000075 + 0.001868 * math.cos(gamma) - 0.032077 * math.sin(gamma)
+                       - 0.014615 * math.cos(2 * gamma) - 0.040849 * math.sin(2 * gamma))
+    decl = (0.006918 - 0.399912 * math.cos(gamma) + 0.070257 * math.sin(gamma) - 0.006758 * math.cos(2 * gamma)
+            + 0.000907 * math.sin(2 * gamma) - 0.002697 * math.cos(3 * gamma) + 0.00148 * math.sin(3 * gamma))
+    cos_ha = (math.cos(math.radians(90.833)) / (math.cos(math.radians(lat)) * math.cos(decl))
+              - math.tan(math.radians(lat)) * math.tan(decl))
+    ha = math.degrees(math.acos(max(-1.0, min(1.0, cos_ha))))
+    midnight_utc = datetime.datetime.combine(day, datetime.time(0), tzinfo=datetime.timezone.utc)
+    rise = midnight_utc + datetime.timedelta(minutes=720 - 4 * (lon + ha) - eqtime)
+    sets = midnight_utc + datetime.timedelta(minutes=720 - 4 * (lon - ha) - eqtime)
+    return rise.astimezone(), sets.astimezone()
+
+
+def is_daytime(cfg, now=None):
+    now = now or datetime.datetime.now().astimezone()
+    if cfg["mode"] == "sun":
+        rise, sets = sun_times(now.date(), *zone_coordinates())
+        return rise <= now < sets
+    light = datetime.time.fromisoformat(cfg["light"])
+    dark = datetime.time.fromisoformat(cfg["dark"])
+    t = now.time()
+    return light <= t < dark if light < dark else not (dark <= t < light)
+
+
+def auto_theme_tick():
+    cfg = load_auto_theme()
+    if not cfg["enabled"]:
+        return
+    want = "light" if is_daytime(cfg) else "dark"
+    if cfg["current"] == want:
+        return
+    scheme = cfg["lightScheme"] if want == "light" else cfg["darkScheme"]
+    run(["plasma-apply-colorscheme", scheme])
+    changeicons = libexec("plasma-changeicons")
+    if changeicons:
+        run([changeicons, "breeze" if want == "light" else "breeze-dark"])
+    cfg["current"] = want
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    AUTO_THEME.write_text(json.dumps(cfg, indent=2))
+
+
+# --------------------------------------------------------------------------- panels
+
+PANEL_PROPS = ["location", "height", "floating", "hiding", "alignment", "lengthMode"]
+
+
+def plasma_script(script):
+    """Run a Plasma desktop script and return what it print()s."""
+    try:
+        out = subprocess.run(["gdbus", "call", "--session", "--dest", "org.kde.plasmashell",
+                              "--object-path", "/PlasmaShell", "--method",
+                              "org.kde.PlasmaShell.evaluateScript", script],
+                             capture_output=True, text=True, timeout=20).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    if out.startswith("('") and out.endswith("',)"):
+        out = out[2:-3].encode().decode("unicode_escape")
+    return out
+
+
+def list_panels():
+    props = ",".join(f"{k}: p.{k}" for k in PANEL_PROPS)
+    out = plasma_script("var r = []; panels().forEach(function (p) { r.push({id: p.id, %s}); });"
+                        " print(JSON.stringify(r));" % props)
+    try:
+        return json.loads(out)
+    except ValueError:
+        return []
+
+
+def update_panel(panel_id, values):
+    lines = [f"var p = panelById({int(panel_id)});"]
+    for key, value in values.items():
+        if key in PANEL_PROPS:
+            lines.append(f"p.{key} = {json.dumps(value)};")
+    plasma_script(" ".join(lines))
+
+
+def add_dock():
+    plasma_script('var p = new Panel; p.location = "bottom"; p.height = 2 * Math.ceil(gridUnit * 3.2 / 2);'
+                  ' p.floating = true; p.lengthMode = "fit"; p.alignment = "center"; p.hiding = "dodgewindows";'
+                  ' p.addWidget("org.kde.plasma.icontasks");')
+
+
+def remove_panel(panel_id):
+    plasma_script(f"panelById({int(panel_id)}).remove();")
+
+
 # --------------------------------------------------------------------------- first login
 
 def firstrun(open_gui=True):
@@ -402,11 +543,12 @@ def firstrun(open_gui=True):
 # --------------------------------------------------------------------------- GUI
 
 def run_gui(welcome=False):
-    from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal
+    from PyQt6.QtCore import Qt, QSize, QThread, QTime, pyqtSignal
     from PyQt6.QtGui import QColor, QIcon, QPixmap
-    from PyQt6.QtWidgets import (QApplication, QColorDialog, QComboBox, QFileDialog, QFrame, QGridLayout,
-                                 QGroupBox, QHBoxLayout, QInputDialog, QLabel, QMainWindow, QMessageBox,
-                                 QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget)
+    from PyQt6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QComboBox, QFileDialog, QFrame,
+                                 QGridLayout, QGroupBox, QHBoxLayout, QInputDialog, QLabel, QMainWindow,
+                                 QMessageBox, QPushButton, QScrollArea, QSlider, QTabWidget, QTimeEdit,
+                                 QVBoxLayout, QWidget)
 
     class Worker(QThread):
         failed = pyqtSignal(str)
@@ -517,6 +659,8 @@ def run_gui(welcome=False):
             self.tabs.addTab(self.presets_page(), "Vorlagen")
             self.tabs.addTab(self.looks_page(), "Meine Looks")
             self.tabs.addTab(self.design_page(), "Selbst gestalten")
+            self.tabs.addTab(self.panels_page(), "Leisten")
+            self.tabs.addTab(self.daynight_page(), "Hell && Dunkel")
             self.tabs.setCurrentIndex(max(idx, 0))
 
         # -- pages
@@ -628,6 +772,124 @@ def run_gui(welcome=False):
             lay.addStretch()
             return page
 
+        def panels_page(self):
+            page = QWidget()
+            lay = QVBoxLayout(page)
+            intro = QLabel("Hier passt du Leisten und Docks an: Position, Größe, schwebend oder fest, "
+                           "automatisch ausblenden. Änderungen sind sofort sichtbar.")
+            intro.setWordWrap(True)
+            lay.addWidget(intro)
+            panels = list_panels()
+            if not panels:
+                lay.addWidget(QLabel("Keine Leisten gefunden (läuft die Plasma-Oberfläche?)."))
+            picker = QComboBox()
+            names = {"bottom": "unten", "top": "oben", "left": "links", "right": "rechts"}
+            for i, pnl in enumerate(panels, 1):
+                picker.addItem(f"Leiste {i} ({names.get(pnl.get('location'), pnl.get('location'))})", pnl)
+            form = QGridLayout()
+            location = QComboBox()
+            location.addItems(["unten", "oben", "links", "rechts"])
+            size = QSlider(Qt.Orientation.Horizontal)
+            size.setRange(24, 120)
+            size_label = QLabel()
+            size.valueChanged.connect(lambda v: size_label.setText(f"{v} px"))
+            floating = QCheckBox("Schwebend (mit Abstand zum Rand)")
+            length = QComboBox()
+            length.addItems(["Volle Breite", "An Inhalt anpassen (Dock)"])
+            align = QComboBox()
+            align.addItems(["Links/Oben", "Mitte", "Rechts/Unten"])
+            hiding = QComboBox()
+            hiding.addItems(["Immer sichtbar", "Automatisch ausblenden", "Fenstern ausweichen"])
+            for row, (label, widget) in enumerate([("Position", location), ("Dicke", size), ("", size_label),
+                                                   ("", floating), ("Länge", length), ("Ausrichtung", align),
+                                                   ("Sichtbarkeit", hiding)]):
+                form.addWidget(QLabel(label), row, 0)
+                form.addWidget(widget, row, 1)
+            loc_keys = ["bottom", "top", "left", "right"]
+            align_keys = ["left", "center", "right"]
+            hide_keys = ["none", "autohide", "dodgewindows"]
+
+            def load(_=None):
+                pnl = picker.currentData()
+                if not pnl:
+                    return
+                location.setCurrentIndex(loc_keys.index(pnl["location"]) if pnl.get("location") in loc_keys else 0)
+                size.setValue(int(pnl.get("height") or 44))
+                floating.setChecked(bool(pnl.get("floating")))
+                length.setCurrentIndex(1 if pnl.get("lengthMode") == "fit" else 0)
+                align.setCurrentIndex(align_keys.index(pnl["alignment"]) if pnl.get("alignment") in align_keys else 1)
+                hiding.setCurrentIndex(hide_keys.index(pnl["hiding"]) if pnl.get("hiding") in hide_keys else 0)
+
+            def apply():
+                pnl = picker.currentData()
+                if pnl:
+                    update_panel(pnl["id"], {"location": loc_keys[location.currentIndex()], "height": size.value(),
+                                             "floating": floating.isChecked(),
+                                             "lengthMode": "fit" if length.currentIndex() else "fill",
+                                             "alignment": align_keys[align.currentIndex()],
+                                             "hiding": hide_keys[hiding.currentIndex()]})
+                    self.status.setText("Leiste angepasst.")
+
+            picker.currentIndexChanged.connect(load)
+            load()
+            lay.addWidget(picker)
+            lay.addLayout(form)
+            row = QHBoxLayout()
+            for label, cb in [("Übernehmen", apply),
+                              ("Neues Dock hinzufügen", lambda: (add_dock(), self.rebuild())),
+                              ("Diese Leiste entfernen", lambda: picker.currentData() and (
+                                  QMessageBox.question(self, "Leiste entfernen", "Diese Leiste wirklich entfernen?")
+                                  == QMessageBox.StandardButton.Yes) and (
+                                  remove_panel(picker.currentData()["id"]), self.rebuild()))]:
+                b = QPushButton(label)
+                b.clicked.connect(cb)
+                row.addWidget(b)
+            lay.addLayout(row)
+            lay.addStretch()
+            return page
+
+        def daynight_page(self):
+            page = QWidget()
+            lay = QVBoxLayout(page)
+            cfg = load_auto_theme()
+            enabled = QCheckBox("Automatisch zwischen hell und dunkel wechseln")
+            enabled.setChecked(cfg["enabled"])
+            mode = QComboBox()
+            mode.addItems(["Zu festen Uhrzeiten", "Bei Sonnenauf- und -untergang (nach Zeitzone)"])
+            mode.setCurrentIndex(1 if cfg["mode"] == "sun" else 0)
+            light = QTimeEdit(QTime.fromString(cfg["light"], "HH:mm"))
+            dark = QTimeEdit(QTime.fromString(cfg["dark"], "HH:mm"))
+            schemes = sorted({p.stem for d in (Path("/usr/share/color-schemes"),
+                                               DATA_HOME / "color-schemes") if d.is_dir()
+                              for p in d.glob("*.colors")} | {"BreezeLight", "BreezeDark"})
+            light_scheme, dark_scheme = QComboBox(), QComboBox()
+            light_scheme.addItems(schemes)
+            dark_scheme.addItems(schemes)
+            light_scheme.setCurrentText(cfg["lightScheme"])
+            dark_scheme.setCurrentText(cfg["darkScheme"])
+            form = QGridLayout()
+            for row, (label, widget) in enumerate([("Wann", mode), ("Hell ab", light), ("Dunkel ab", dark),
+                                                   ("Helles Farbschema", light_scheme),
+                                                   ("Dunkles Farbschema", dark_scheme)]):
+                form.addWidget(QLabel(label), row, 0)
+                form.addWidget(widget, row, 1)
+
+            def save():
+                new = {**cfg, "enabled": enabled.isChecked(), "mode": "sun" if mode.currentIndex() else "times",
+                       "light": light.time().toString("HH:mm"), "dark": dark.time().toString("HH:mm"),
+                       "lightScheme": light_scheme.currentText(), "darkScheme": dark_scheme.currentText(),
+                       "current": ""}
+                save_auto_theme(new)
+                auto_theme_tick()
+                self.status.setText("Hell/Dunkel-Automatik " + ("eingeschaltet." if new["enabled"] else "ausgeschaltet."))
+            button = QPushButton("Speichern")
+            button.clicked.connect(save)
+            lay.addWidget(enabled)
+            lay.addLayout(form)
+            lay.addWidget(button)
+            lay.addStretch()
+            return page
+
         # -- actions
         def save_current(self):
             name, ok = QInputDialog.getText(self, "Look speichern", "Name für deinen Look:")
@@ -693,8 +955,12 @@ def main(argv=None):
     ap.add_argument("--apply", metavar="ID", help="Vorlage anwenden (z. B. macos, win11)")
     ap.add_argument("--save", metavar="NAME", help="aktuellen Desktop als eigenen Look speichern")
     ap.add_argument("--list", action="store_true", help="Vorlagen und eigene Looks auflisten")
+    ap.add_argument("--auto-theme", action="store_true", help="Hell/Dunkel-Automatik prüfen (vom Timer)")
     args = ap.parse_args(argv)
 
+    if args.auto_theme:
+        auto_theme_tick()
+        return 0
     if args.firstrun:
         if firstrun():
             return run_gui(welcome=True)

@@ -229,8 +229,93 @@ def wp_minimal():
     return defs, body
 
 
+def wp_winxp():
+    """Rolling green hills under a blue sky with soft clouds."""
+    defs = (lin("sky", [(0, "#1d5fd0", 1), (0.55, "#5b9cf0", 1), (1, "#a9d0ff", 1)], 0, 0, 0, 1)
+            + lin("hill", [(0, "#79c142", 1), (1, "#3f8a1f", 1)], 0, 0, 0, 1)
+            + rad("cloud", [(0, "#ffffff", 0.95), (1, "#ffffff", 0)], 0.5, 0.5, 0.5))
+    body = '<rect width="3840" height="2160" fill="url(#sky)"/>'
+    for cx, cy, rx, ry in [(700, 520, 520, 150), (1150, 480, 380, 120), (2600, 360, 640, 170), (3300, 620, 420, 120)]:
+        body += f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="url(#cloud)"/>'
+    body += '<path d="M0 1500 C 900 1150 2000 1250 3840 1420 L3840 2160 L0 2160 Z" fill="url(#hill)"/>'
+    body += '<path d="M0 1700 C 1200 1450 2600 1750 3840 1600 L3840 2160 L0 2160 Z" fill="#5aa832" opacity="0.6"/>'
+    return defs, body
+
+
+def wp_win10():
+    """Dark blue space crossed by glowing diagonal light shards."""
+    defs = (lin("bg", [(0, "#00142e", 1), (1, "#003a7a", 1)], 0, 0, 1, 1)
+            + lin("shard", [(0, "#4fc3ff", 0), (0.6, "#4fc3ff", 0.55), (1, "#bfe9ff", 0.9)], 0, 1, 1, 0))
+    body = '<rect width="3840" height="2160" fill="url(#bg)"/>'
+    for x0, w, top, alpha in [(1500, 260, 0, 0.5), (2000, 420, 120, 0.8), (2650, 180, 60, 0.6), (3050, 340, 0, 0.7)]:
+        body += (f'<path d="M{x0} 2160 L{x0 + w} 2160 L{x0 + w + 900} {top} L{x0 + 900} {top} Z" '
+                 f'fill="url(#shard)" opacity="{alpha}"/>')
+    body += '<path d="M0 1900 C 1200 1700 2600 2000 3840 1750 L3840 2160 L0 2160 Z" fill="#001a3d" opacity="0.8"/>'
+    return defs, body
+
+
+def wp_elementary():
+    """Calm mountain lake at dusk."""
+    defs = (lin("sky", [(0, "#f6c7a1", 1), (0.5, "#b7a6d8", 1), (1, "#5b6ea8", 1)], 0, 0, 0, 1)
+            + lin("lake", [(0, "#4b5f97", 1), (1, "#26335c", 1)], 0, 0, 0, 1))
+    body = '<rect width="3840" height="2160" fill="url(#sky)"/>'
+    body += '<path d="M0 1350 L700 800 L1150 1150 L1700 650 L2350 1180 L2900 900 L3840 1350 Z" fill="#6f6aa6" opacity="0.9"/>'
+    body += '<path d="M0 1350 L900 1050 L1500 1250 L2300 1000 L3000 1200 L3840 1100 L3840 1350 Z" fill="#4e5490"/>'
+    body += '<rect y="1350" width="3840" height="810" fill="url(#lake)"/>'
+    body += '<path d="M0 1350 L700 1700 L1150 1450 L1700 1850 L2350 1420 L2900 1650 L3840 1350 Z" fill="#6f6aa6" opacity="0.25"/>'
+    return defs, body
+
+
+def wp_deepin():
+    """Soft glassy gradient with floating translucent discs."""
+    defs = (lin("bg", [(0, "#d9ecff", 1), (0.5, "#a7c8ff", 1), (1, "#6f8fff", 1)], 0, 0, 1, 1)
+            + rad("disc", [(0, "#ffffff", 0.75), (1, "#ffffff", 0.05)], 0.35, 0.35, 0.7))
+    body = '<rect width="3840" height="2160" fill="url(#bg)"/>'
+    for cx, cy, r in [(900, 700, 520), (2700, 1300, 760), (3300, 450, 300), (1700, 1650, 360)]:
+        body += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#disc)" stroke="#ffffff" stroke-opacity="0.5" stroke-width="4"/>'
+    return defs, body
+
+
+def wp_wood():
+    """Warm wooden planks."""
+    defs = lin("plank", [(0, "#8a5a32", 1), (0.5, "#a46d3f", 1), (1, "#7a4c27", 1)], 0, 0, 0, 1)
+    body = '<rect width="3840" height="2160" fill="#6b4423"/>'
+    plank_h = 360
+    for row in range(6):
+        y = row * plank_h
+        body += f'<rect x="0" y="{y}" width="3840" height="{plank_h - 6}" fill="url(#plank)"/>'
+        for k in range(14):  # grain
+            gy = y + 20 + k * 24
+            wob = 18 + (k * 7 + row * 11) % 30
+            tone = ["#5e3a1d", "#b47a48", "#714625"][k % 3]
+            body += (f'<path d="M0 {gy} C 900 {gy - wob} 1900 {gy + wob} 3840 {gy - wob / 2}" stroke="{tone}" '
+                     f'stroke-opacity="0.35" stroke-width="{3 + k % 4}" fill="none"/>')
+        knot_x = (row * 1373) % 3400 + 200
+        body += (f'<ellipse cx="{knot_x}" cy="{y + plank_h / 2}" rx="70" ry="26" fill="#4a2c14" opacity="0.6"/>'
+                 f'<ellipse cx="{knot_x}" cy="{y + plank_h / 2}" rx="120" ry="48" fill="none" stroke="#4a2c14" stroke-opacity="0.35" stroke-width="5"/>')
+        body += f'<rect x="0" y="{y + plank_h - 6}" width="3840" height="6" fill="#3e2511"/>'
+    return defs, body
+
+
+def wp_nord():
+    """Arctic night: snowy peaks under an aurora."""
+    defs = (lin("sky", [(0, "#2e3440", 1), (1, "#434c5e", 1)], 0, 0, 0, 1)
+            + lin("aurora", [(0, "#88c0d0", 0), (0.5, "#8fbcbb", 0.55), (1, "#a3be8c", 0)], 0, 0, 1, 0))
+    body = '<rect width="3840" height="2160" fill="url(#sky)"/>'
+    body += '<path d="M0 700 C 900 300 1800 900 2700 450 S 3600 600 3840 350 L3840 650 C 3300 900 2600 700 1800 1050 S 600 800 0 1000 Z" fill="url(#aurora)"/>'
+    body += '<path d="M0 1500 L900 900 L1500 1300 L2200 800 L3000 1350 L3840 1000 L3840 2160 L0 2160 Z" fill="#4c566a"/>'
+    body += ('<path d="M900 900 L1020 980 L960 965 L900 1000 L820 975 L720 1020 Z" fill="#eceff4"/>'
+             '<path d="M2200 800 L2360 910 L2290 900 L2220 945 L2140 905 L2060 900 Z" fill="#eceff4"/>')
+    body += '<path d="M0 1800 L1300 1450 L2400 1750 L3840 1500 L3840 2160 L0 2160 Z" fill="#3b4252"/>'
+    for i in range(80):
+        body += f'<circle cx="{(i * 7919) % 3840}" cy="{(i * 3571) % 900}" r="{1.5 + i % 3}" fill="#eceff4" opacity="0.5"/>'
+    return defs, body
+
+
 WALLPAPERS = {"prism": wp_prism, "win11": wp_win11, "win7": wp_win7, "macos": wp_macos,
-              "ubuntu": wp_ubuntu, "gnome": wp_gnome, "chromeos": wp_chromeos, "minimal": wp_minimal}
+              "ubuntu": wp_ubuntu, "gnome": wp_gnome, "chromeos": wp_chromeos, "minimal": wp_minimal,
+              "winxp": wp_winxp, "win10": wp_win10, "elementary": wp_elementary, "deepin": wp_deepin,
+              "wood": wp_wood, "nord": wp_nord}
 
 
 # --------------------------------------------------------------------------- panel layouts
@@ -296,6 +381,22 @@ LAYOUTS = {
                       widgets=[dash("view-grid"), SPACER, tasks(False), SPACER, TRAY, clock(False)])],
     "minimal": [dict(location="bottom", thickness=2.5, floating=True, length="fit", hiding="autohide",
                      widgets=[dash("view-grid"), tasks(False), SEP, TRAY, clock(False)])],
+    "winxp": [dict(location="bottom", thickness=2.1, floating=False, length="fill", hiding="none",
+                   widgets=[kickoff(), tasks(True), TRAY, clock(False)])],
+    "win10": [dict(location="bottom", thickness=2.3, floating=False, length="fill", hiding="none",
+                   widgets=[kickoff(), tasks(True), TRAY, clock(True), SHOWDESK])],
+    "elementary": [dict(location="top", thickness=1.5, floating=False, length="fill", hiding="none",
+                        widgets=[dash("view-grid"), SPACER, clock(True, "ddd d. MMM"), SPACER, TRAY]),
+                   dict(location="bottom", thickness=3.2, floating=True, length="fit", hiding="dodgewindows",
+                        widgets=[tasks(False)])],
+    "deepin": [dict(location="bottom", thickness=3.4, floating=True, length="fill", hiding="none",
+                    widgets=[dash("view-grid"), SPACER, tasks(False), SPACER, TRAY, clock(True)])],
+    "wood": [dict(location="top", thickness=1.6, floating=False, length="fill", hiding="none",
+                  widgets=[kickoff(), SPACER, clock(True, "dddd, d. MMMM"), SPACER, TRAY]),
+             dict(location="bottom", thickness=3.0, floating=True, length="fit", hiding="none",
+                  widgets=[tasks(False), SEP, TRASH])],
+    "nord": [dict(location="bottom", thickness=2.6, floating=True, length="fill", hiding="none",
+                  widgets=[kickoff(), SPACER, tasks(False), SPACER, TRAY, clock(False)])],
 }
 
 LAYOUT_PRELUDE = r"""
@@ -357,6 +458,87 @@ def layout_js(preset) -> str:
 
 # --------------------------------------------------------------------------- global theme files
 
+# --------------------------------------------------------------------------- colour schemes
+#
+# Looks whose colours Breeze does not cover get their own KDE colour scheme.
+# panel/panel_fg are only used for the preview images.
+
+COLOR_SCHEMES = {
+    "PrismXP": dict(title="PrismOS XP", window="#ece9d8", view="#ffffff", button="#f4f3ee", fg="#000000",
+                    inactive="#7f7c6f", selection="#316ac5", selection_fg="#ffffff",
+                    header="#245edb", header_fg="#ffffff", wm_inactive="#7a96df",
+                    complementary="#1c4fb8", complementary_fg="#ffffff", link="#0b4fc4",
+                    panel="#245edb", panel_fg="#ffffff"),
+    "PrismWood": dict(title="PrismOS Holz", window="#f3e9dc", view="#fffaf2", button="#ecdcc6", fg="#3b2a1a",
+                      inactive="#8a7560", selection="#a65e2e", selection_fg="#fff8ef",
+                      header="#6b4423", header_fg="#f8ecdc", wm_inactive="#8c6a4c",
+                      complementary="#4a2e17", complementary_fg="#f3e2c9", link="#8b4513",
+                      panel="#5a381b", panel_fg="#f8ecdc"),
+    "PrismNord": dict(title="PrismOS Nord", window="#3b4252", view="#2e3440", button="#434c5e", fg="#eceff4",
+                      inactive="#8a94a8", selection="#5e81ac", selection_fg="#eceff4",
+                      header="#2e3440", header_fg="#e5e9f0", wm_inactive="#3b4252",
+                      complementary="#2e3440", complementary_fg="#eceff4", link="#88c0d0",
+                      panel="#2e3440", panel_fg="#e5e9f0"),
+}
+
+
+def _rgb(hex_color):
+    h = hex_color.lstrip("#")
+    return ",".join(str(int(h[i:i + 2], 16)) for i in (0, 2, 4))
+
+
+def _mix(a, b, t):
+    pa = [int(a.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)]
+    pb = [int(b.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(pa, pb))
+
+
+def colorscheme_file(name, c) -> str:
+    def group(title, bg, fg, alt=None):
+        return textwrap.dedent(f"""\
+            [{title}]
+            BackgroundAlternate={_rgb(alt or _mix(bg, fg, 0.04))}
+            BackgroundNormal={_rgb(bg)}
+            DecorationFocus={_rgb(c['selection'])}
+            DecorationHover={_rgb(c['selection'])}
+            ForegroundActive={_rgb(c['selection'])}
+            ForegroundInactive={_rgb(_mix(fg, bg, 0.4))}
+            ForegroundLink={_rgb(c['link'])}
+            ForegroundNegative=218,68,83
+            ForegroundNeutral=246,116,0
+            ForegroundNormal={_rgb(fg)}
+            ForegroundPositive=39,174,96
+            ForegroundVisited={_rgb(_mix(c['link'], fg, 0.4))}
+
+            """)
+    out = group("Colors:Button", c["button"], c["fg"])
+    out += group("Colors:Complementary", c["complementary"], c["complementary_fg"])
+    out += group("Colors:Header", c["header"], c["header_fg"])
+    out += group("Colors:Header][Inactive", c["wm_inactive"], c["header_fg"])
+    out += group("Colors:Selection", c["selection"], c["selection_fg"])
+    out += group("Colors:Tooltip", c["view"], c["fg"])
+    out += group("Colors:View", c["view"], c["fg"])
+    out += group("Colors:Window", c["window"], c["fg"])
+    out += textwrap.dedent(f"""\
+        [General]
+        ColorScheme={name}
+        Name={c['title']}
+        shadeSortColumn=true
+
+        [KDE]
+        contrast=4
+
+        [WM]
+        activeBackground={_rgb(c['header'])}
+        activeBlend={_rgb(c['header_fg'])}
+        activeForeground={_rgb(c['header_fg'])}
+        inactiveBackground={_rgb(c['wm_inactive'])}
+        inactiveBlend={_rgb(c['header_fg'])}
+        inactiveForeground={_rgb(_mix(c['header_fg'], c['wm_inactive'], 0.35))}
+        """)
+    return out
+
+
 def qt_font(family: str, size: int) -> str:
     return f"{family},{size},-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
 
@@ -383,7 +565,7 @@ def defaults_ini(preset) -> str:
         Theme={preset['icons']}
 
         [plasmarc][Theme]
-        name=default
+        name={preset.get('plasmaTheme', 'default')}
 
         [kcminputrc][Mouse]
         cursorTheme={preset['cursor']}
@@ -430,8 +612,10 @@ def preview_svg(preset) -> str:
     accent = rgb(preset["accent"])
     wdefs, wbody = WALLPAPERS[key]()
     gu = 22  # grid unit at preview scale (slightly enlarged for readability)
-    panel_bg = "#1f2026" if dark else "#f5f6f8"
-    panel_fg = "#e8e8ee" if dark else "#2b2d33"
+    scheme = COLOR_SCHEMES.get(preset["colorScheme"])
+    dark_panel = dark or preset.get("plasmaTheme") == "breeze-dark"
+    panel_bg = scheme["panel"] if scheme else ("#1f2026" if dark_panel else "#f5f6f8")
+    panel_fg = scheme["panel_fg"] if scheme else ("#e8e8ee" if dark_panel else "#2b2d33")
     body = f'<g transform="scale(0.5)">{wbody}</g>'
     sw, sh = 1920, 1080
     reserved = {"top": 0, "bottom": 0, "left": 0}
@@ -549,13 +733,14 @@ def preview_svg(preset) -> str:
     # one application window
     wx, wy = reserved["left"] + 170, reserved["top"] + 150
     ww, wh = 900, 540
-    win_bg = "#2a2b31" if dark else "#ffffff"
-    title_bg = "#232429" if dark else "#eef0f3"
-    fg = "#e8e8ee" if dark else "#2b2d33"
+    win_bg = scheme["view"] if scheme else ("#2a2b31" if dark else "#ffffff")
+    title_bg = scheme["header"] if scheme else ("#232429" if dark else "#eef0f3")
+    fg = scheme["fg"] if scheme else ("#e8e8ee" if dark else "#2b2d33")
+    title_fg = scheme["header_fg"] if scheme else fg
     shapes += (f'<rect x="{wx + 8}" y="{wy + 14}" width="{ww}" height="{wh}" rx="12" fill="#000" opacity="0.25"/>'
                f'<rect x="{wx}" y="{wy}" width="{ww}" height="{wh}" rx="12" fill="{win_bg}"/>'
                f'<path d="M{wx} {wy + 12} a12 12 0 0 1 12 -12 h{ww - 24} a12 12 0 0 1 12 12 v34 h-{ww} Z" fill="{title_bg}"/>'
-               f'<text x="{wx + ww / 2}" y="{wy + 30}" font-family="{FONT}" font-size="17" fill="{fg}" '
+               f'<text x="{wx + ww / 2}" y="{wy + 30}" font-family="{FONT}" font-size="17" fill="{title_fg}" '
                f'text-anchor="middle" opacity="0.8">Dateien – Persönlicher Ordner</text>')
     mac = preset["buttonsLeft"].startswith("X")
     left = preset["buttonsLeft"].replace("M", "").replace("S", "")
@@ -643,6 +828,11 @@ def main():
         save_png(prev, pkg / "contents/previews/preview.png", 640, 360)
         save_jpg(prev, pkg / "contents/previews/fullscreenpreview.jpg", 1920, 1080, 88)
         print("look:", preset["id"])
+
+    schemes = LOOKS / "usr/share/color-schemes"
+    schemes.mkdir(parents=True, exist_ok=True)
+    for name, colors in COLOR_SCHEMES.items():
+        (schemes / f"{name}.colors").write_text(colorscheme_file(name, colors))
 
     icons = LOOKS / "usr/share/icons/hicolor/scalable/apps"
     icons.mkdir(parents=True, exist_ok=True)

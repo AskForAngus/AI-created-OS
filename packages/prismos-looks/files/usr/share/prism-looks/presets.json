@@ -14,7 +14,8 @@
       "font": "Noto Sans",
       "buttonsLeft": "",
       "buttonsRight": "IAX",
-      "dark": true
+      "dark": true,
+      "plasmaTheme": "default"
     },
     {
       "id": "org.prismos.win11.desktop",
@@ -25,6 +26,22 @@
       "icons": "breeze",
       "cursor": "Breeze_Light",
       "accent": "0,103,192",
+      "font": "Noto Sans",
+      "buttonsLeft": "",
+      "buttonsRight": "IAX",
+      "dark": false,
+      "plasmaTheme": "default"
+    },
+    {
+      "id": "org.prismos.win10.desktop",
+      "key": "win10",
+      "name": "Windows 10-Stil",
+      "description": "Dunkle Taskleiste über die volle Breite, Startmenü links, helle Fenster.",
+      "colorScheme": "BreezeLight",
+      "plasmaTheme": "breeze-dark",
+      "icons": "breeze",
+      "cursor": "Breeze_Light",
+      "accent": "0,120,215",
       "font": "Noto Sans",
       "buttonsLeft": "",
       "buttonsRight": "IAX",
@@ -42,6 +59,22 @@
       "font": "Noto Sans",
       "buttonsLeft": "",
       "buttonsRight": "IAX",
+      "dark": false,
+      "plasmaTheme": "default"
+    },
+    {
+      "id": "org.prismos.winxp.desktop",
+      "key": "winxp",
+      "name": "Windows XP-Stil",
+      "description": "Blaue Taskleiste, grüner Start-Knopf, Hügel unter blauem Himmel – Nostalgie pur.",
+      "colorScheme": "PrismXP",
+      "plasmaTheme": "default",
+      "icons": "breeze",
+      "cursor": "Breeze_Light",
+      "accent": "49,106,197",
+      "font": "Noto Sans",
+      "buttonsLeft": "",
+      "buttonsRight": "IAX",
       "dark": false
     },
     {
@@ -56,7 +89,8 @@
       "font": "Inter",
       "buttonsLeft": "XIA",
       "buttonsRight": "",
-      "dark": false
+      "dark": false,
+      "plasmaTheme": "default"
     },
     {
       "id": "org.prismos.ubuntu.desktop",
@@ -70,7 +104,8 @@
       "font": "Noto Sans",
       "buttonsLeft": "",
       "buttonsRight": "IAX",
-      "dark": true
+      "dark": true,
+      "plasmaTheme": "default"
     },
     {
       "id": "org.prismos.gnome.desktop",
@@ -84,6 +119,37 @@
       "font": "Inter",
       "buttonsLeft": "",
       "buttonsRight": "X",
+      "dark": false,
+      "plasmaTheme": "default"
+    },
+    {
+      "id": "org.prismos.elementary.desktop",
+      "key": "elementary",
+      "name": "Elementary-Stil",
+      "description": "Schlanke Leiste oben, Dock in der Mitte, Schließen links und Maximieren rechts.",
+      "colorScheme": "BreezeLight",
+      "plasmaTheme": "default",
+      "icons": "breeze",
+      "cursor": "breeze_cursors",
+      "accent": "54,137,230",
+      "font": "Inter",
+      "buttonsLeft": "X",
+      "buttonsRight": "A",
+      "dark": false
+    },
+    {
+      "id": "org.prismos.deepin.desktop",
+      "key": "deepin",
+      "name": "Deepin-Stil",
+      "description": "Große, abgerundete Leiste unten mit zentrierten Apps und moderner Glasoptik.",
+      "colorScheme": "BreezeLight",
+      "plasmaTheme": "default",
+      "icons": "breeze",
+      "cursor": "breeze_cursors",
+      "accent": "0,129,255",
+      "font": "Noto Sans",
+      "buttonsLeft": "",
+      "buttonsRight": "IAX",
       "dark": false
     },
     {
@@ -98,7 +164,38 @@
       "font": "Noto Sans",
       "buttonsLeft": "",
       "buttonsRight": "IAX",
+      "dark": false,
+      "plasmaTheme": "default"
+    },
+    {
+      "id": "org.prismos.wood.desktop",
+      "key": "wood",
+      "name": "Holz",
+      "description": "Warme Holzoptik mit cremefarbenen Fenstern und braunen Titelleisten – gemütlich wie ein Schreibtisch.",
+      "colorScheme": "PrismWood",
+      "plasmaTheme": "default",
+      "icons": "breeze",
+      "cursor": "breeze_cursors",
+      "accent": "166,94,46",
+      "font": "Noto Sans",
+      "buttonsLeft": "",
+      "buttonsRight": "IAX",
       "dark": false
+    },
+    {
+      "id": "org.prismos.nord.desktop",
+      "key": "nord",
+      "name": "Nord",
+      "description": "Kühles Blau-Grau nach dem Vorbild arktischer Landschaften – ruhig und augenschonend.",
+      "colorScheme": "PrismNord",
+      "plasmaTheme": "default",
+      "icons": "breeze-dark",
+      "cursor": "breeze_cursors",
+      "accent": "136,192,208",
+      "font": "Inter",
+      "buttonsLeft": "",
+      "buttonsRight": "IAX",
+      "dark": true
     },
     {
       "id": "org.prismos.minimal.desktop",
@@ -112,7 +209,8 @@
       "font": "Inter",
       "buttonsLeft": "",
       "buttonsRight": "IAX",
-      "dark": false
+      "dark": false,
+      "plasmaTheme": "default"
     }
   ]
 }

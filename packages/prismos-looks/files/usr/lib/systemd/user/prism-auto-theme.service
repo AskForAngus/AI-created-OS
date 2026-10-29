@@ -1,0 +1,6 @@
+[Unit]
+Description=PrismOS: hell/dunkel nach Uhrzeit wechseln
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/prism-looks --auto-theme
