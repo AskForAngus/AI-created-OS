@@ -3,7 +3,7 @@ Description=PrismOS: ausstehende Programme regelmäßig nachinstallieren
 ConditionPathExists=/var/lib/prismos/plan.json
 
 [Timer]
-OnBootSec=2min
+OnBootSec=45s
 OnUnitActiveSec=15min
 
 [Install]

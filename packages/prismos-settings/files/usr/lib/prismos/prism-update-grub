@@ -1,0 +1,9 @@
+#!/bin/sh
+# Regenerate the GRUB menu, but only once GRUB has been set up
+# (during the installation the bootloader step does this itself).
+for cfg in /boot/grub/grub.cfg /boot/efi/grub/grub.cfg; do
+    if [ -f "$cfg" ]; then
+        exec grub-mkconfig -o "$cfg"
+    fi
+done
+exit 0

@@ -65,7 +65,7 @@ done
 printf '[Autologin]\nUser=%s\nSession=plasma\n' "$USER_NAME" > "$TARGET/etc/sddm.conf.d/90-autologin.conf"
 
 log "prism-target-cleanup"
-in_target /usr/local/lib/prismos/prism-target-cleanup
+in_target /usr/local/lib/prismos-live/prism-target-cleanup
 for f in /usr/local/bin/prism-installer /etc/calamares /etc/mkinitcpio.conf.d/archiso.conf; do
     [[ ! -e $TARGET$f ]] || { echo "Live-Datei nicht entfernt: $f" >&2; exit 1; }
 done
@@ -76,13 +76,13 @@ log "prismapps: Look und Programmplan"
 sed -i "s/^LookAndFeelPackage=.*/LookAndFeelPackage=$LOOK/" "$TARGET/etc/xdg/kdeglobals"
 mkdir -p "$TARGET/var/lib/prismos"
 cat > "$TARGET/var/lib/prismos/plan.json" <<EOF
-{"refresh_mirrors": true, "pacman": ["firefox"], "pacman_optional": ["firefox-i18n-de", "gibt-es-nicht"],
+{"refresh_mirrors": true, "pacman": ["linux-lts", "firefox"], "pacman_optional": ["firefox-i18n-de", "gibt-es-nicht"],
  "flatpak": [], "services": [], "groups": {}, "drop_kms_hook": false}
 EOF
 cp --remove-destination /etc/resolv.conf "$TARGET/etc/resolv.conf"
-in_target /usr/local/lib/prismos/prism-apply-plan
+in_target /usr/lib/prismos/prism-apply-plan
 [[ ! -e $TARGET/var/lib/prismos/plan.json ]] || { echo "Plan nicht abgearbeitet" >&2; exit 1; }
-in_target pacman -Q firefox firefox-i18n-de
+in_target pacman -Q linux-lts firefox firefox-i18n-de
 
 log "GRUB (grubcfg + bootloader)"
 cat >> "$TARGET/etc/default/grub" <<'EOF'
@@ -96,5 +96,6 @@ EOF
 in_target grub-install --target=i386-pc "$LOOP"
 in_target grub-mkconfig -o /boot/grub/grub.cfg
 grep -E "^menuentry|^submenu" "$TARGET/boot/grub/grub.cfg"
+grep -q "linux-lts" "$TARGET/boot/grub/grub.cfg" || { echo "LTS-Kernel fehlt im Bootmenü" >&2; exit 1; }
 
 log "Installation simuliert: $DISK"

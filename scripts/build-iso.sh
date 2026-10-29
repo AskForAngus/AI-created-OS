@@ -33,15 +33,26 @@ while IFS= read -r f; do
 done < <(find "$REPO/iso/airootfs" -type f -perm -u+x)
 (( missing == 0 )) || exit 1
 
-log "Calamares bauen"
+log "Pakete bauen"
 rm -rf "$WORK"
 mkdir -p "$WORK/pkgbuild" "$WORK/localrepo" "$OUT"
 id builder &>/dev/null || useradd -m builder
 echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
-cp -r "$REPO/packages/calamares" "$WORK/pkgbuild/"
-chown -R builder: "$WORK/pkgbuild"
-(cd "$WORK/pkgbuild/calamares" && sudo -u builder MAKEFLAGS="-j$(nproc)" makepkg -s --noconfirm --needed)
-cp "$WORK"/pkgbuild/calamares/calamares-[0-9]*.pkg.tar.zst "$WORK/localrepo/"
+export PRISMOS_PKGVER=${PRISMOS_PKGVER:-$(date +%Y.%m.%d.%H%M)}
+
+build_pkg() {  # name [makepkg options]
+    local name=$1
+    shift
+    cp -r "$REPO/packages/$name" "$WORK/pkgbuild/"
+    chown -R builder: "$WORK/pkgbuild/$name"
+    (cd "$WORK/pkgbuild/$name" &&
+        sudo -u builder --preserve-env=PRISMOS_PKGVER MAKEFLAGS="-j$(nproc)" makepkg --noconfirm "$@")
+    cp "$WORK/pkgbuild/$name/$name"-[0-9]*.pkg.tar.zst "$WORK/localrepo/"
+}
+build_pkg calamares --syncdeps --needed
+# PrismOS' own packages only contain files; their dependencies are installed with the ISO.
+build_pkg prismos-settings --nodeps
+build_pkg prismos-looks --nodeps
 repo-add "$WORK/localrepo/prismos-local.db.tar.gz" "$WORK"/localrepo/*.pkg.tar.zst
 
 log "Calamares-Module prüfen"
@@ -83,6 +94,13 @@ fi
 
 log "ISO bauen (das dauert eine Weile)"
 mkarchiso -v -w "$WORK/iso" -o "$OUT" "$PROFILE"
+
+log "Größte Pakete im Live-System (installierte Größe)"
+pacman --root "$WORK/iso/x86_64/airootfs" --dbpath "$WORK/iso/x86_64/airootfs/var/lib/pacman" -Qi |
+    awk -F': ' '/^Name/ {n=$2} /^Installed Size/ {
+        split($2, a, " "); s=a[1]; u=a[2]
+        if (u ~ /KiB/) s/=1024; else if (u ~ /GiB/) s*=1024; else if (u ~ /B$/ && u !~ /MiB/) s/=1048576
+        printf "%8.1f MiB  %s\n", s, n }' | sort -rn | head -40 || true
 
 cd "$OUT"
 for iso in prismos-*.iso; do

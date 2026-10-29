@@ -46,7 +46,7 @@ rm -f /etc/systemd/system/prism-live-setup.service \
       /etc/sudoers.d/10-liveuser /etc/polkit-1/rules.d/49-liveuser.rules \
       /etc/sddm.conf.d/50-live-autologin.conf \
       /etc/xdg/reflector/reflector.conf.pacnew
-rm -rf /etc/calamares /usr/lib/calamares /usr/share/calamares
+rm -rf /etc/calamares /usr/lib/calamares /usr/share/calamares /usr/local/lib/prismos-live
 
 # 4. pacman: colours and parallel downloads.
 sed -i -e 's/^#Color$/Color/' -e 's/^#\?ParallelDownloads.*/ParallelDownloads = 8/' /etc/pacman.conf

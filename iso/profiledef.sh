@@ -22,9 +22,5 @@ bootstrap_tarball_compression=('zstd' '-c' '-T0' '--auto-threads=logical' '--lon
 file_permissions=(
   ["/usr/local/bin/prism-installer"]="0:0:755"
   ["/usr/local/bin/prism-live-setup"]="0:0:755"
-  ["/usr/local/bin/prism-looks"]="0:0:755"
-  ["/usr/local/lib/prismos/prism-apply-plan"]="0:0:755"
-  ["/usr/local/lib/prismos/prism-os-release"]="0:0:755"
-  ["/usr/local/lib/prismos/prism-target-cleanup"]="0:0:755"
-  ["/usr/share/prism-looks/prism_looks.py"]="0:0:755"
+  ["/usr/local/lib/prismos-live/prism-target-cleanup"]="0:0:755"
 )

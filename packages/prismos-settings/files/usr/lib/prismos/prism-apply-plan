@@ -9,6 +9,7 @@ empty the file is removed and the timer disables itself.
 
   prism-apply-plan                 work through the plan
   prism-apply-plan --wait-online N wait up to N seconds for internet first
+  prism-apply-plan --installer     called by the installer: skip Flatpaks for now
 """
 
 import argparse
@@ -142,6 +143,8 @@ def add_groups(plan):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--wait-online", type=int, default=0)
+    ap.add_argument("--installer", action="store_true",
+                    help="running inside the installer: leave Flatpaks for the first boot")
     args = ap.parse_args()
 
     if not PLAN.exists():
@@ -163,7 +166,9 @@ def main():
             refresh_mirrors(plan)
         install_packages(plan)
         save(plan)
-        if online("dl.flathub.org"):
+        # Flatpaks pull large runtimes; they are installed in the background
+        # after the first boot so the installer finishes quickly.
+        if not args.installer and online("dl.flathub.org"):
             install_flatpaks(plan)
     else:
         log("keine Internetverbindung – Programme werden später installiert")

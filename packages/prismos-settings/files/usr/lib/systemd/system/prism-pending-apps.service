@@ -6,7 +6,7 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/lib/prismos/prism-apply-plan --wait-online 120
+ExecStart=/usr/lib/prismos/prism-apply-plan --wait-online 120
 # Exit code 2 means "not finished yet, will retry"
 SuccessExitStatus=2
 Nice=10

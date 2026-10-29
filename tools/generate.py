@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate PrismOS artwork and Plasma look-and-feel packages.
 
-Single source of truth is iso/airootfs/usr/share/prism-looks/presets.json.
-From it this script writes, into the airootfs overlay:
+Single source of truth is packages/prismos-looks/files/usr/share/prism-looks/presets.json.
+From it this script writes, into the prismos-looks package and the live ISO overlay:
 
   * /usr/share/plasma/look-and-feel/<id>/   Plasma global themes (defaults, panel layout, previews)
   * /usr/share/wallpapers/PrismOS/<key>.jpg wallpapers
@@ -26,8 +26,9 @@ from PIL import Image
 
 REPO = Path(__file__).resolve().parent.parent
 ISO = REPO / "iso"
-ROOTFS = ISO / "airootfs"
-PRESETS = json.loads((ROOTFS / "usr/share/prism-looks/presets.json").read_text())["presets"]
+ROOTFS = ISO / "airootfs"  # live medium only (installer branding)
+LOOKS = REPO / "packages/prismos-looks/files"  # installed system
+PRESETS = json.loads((LOOKS / "usr/share/prism-looks/presets.json").read_text())["presets"]
 
 W, H = 3840, 2160
 FONT = "Inter, 'Noto Sans', sans-serif"
@@ -627,13 +628,13 @@ SLIDES = [
 # --------------------------------------------------------------------------- main
 
 def main():
-    wp_dir = ROOTFS / "usr/share/wallpapers/PrismOS"
+    wp_dir = LOOKS / "usr/share/wallpapers/PrismOS"
     for preset in PRESETS:
         key = preset["key"]
         defs, body = WALLPAPERS[key]()
         save_jpg(svg_doc(body, W, H, defs), wp_dir / f"{key}.jpg", W, H)
 
-        pkg = ROOTFS / "usr/share/plasma/look-and-feel" / preset["id"]
+        pkg = LOOKS / "usr/share/plasma/look-and-feel" / preset["id"]
         (pkg / "contents/layouts").mkdir(parents=True, exist_ok=True)
         (pkg / "metadata.json").write_text(metadata(preset))
         (pkg / "contents/defaults").write_text(defaults_ini(preset))
@@ -643,12 +644,14 @@ def main():
         save_jpg(prev, pkg / "contents/previews/fullscreenpreview.jpg", 1920, 1080, 88)
         print("look:", preset["id"])
 
-    icons = ROOTFS / "usr/share/icons/hicolor/scalable/apps"
+    icons = LOOKS / "usr/share/icons/hicolor/scalable/apps"
     icons.mkdir(parents=True, exist_ok=True)
     (icons / "prismos.svg").write_text(logo_svg(512))
     (icons / "prismos-start.svg").write_text(start_icon_svg())
     (icons / "prismos-looks.svg").write_text(looks_icon_svg())
-    (icons / "prismos-installer.svg").write_text(installer_icon_svg())
+    live_icons = ROOTFS / "usr/share/icons/hicolor/scalable/apps"
+    live_icons.mkdir(parents=True, exist_ok=True)
+    (live_icons / "prismos-installer.svg").write_text(installer_icon_svg())
 
     brand = ROOTFS / "etc/calamares/branding/prismos"
     save_png(logo_svg(512), brand / "logo.png", 256, 256)

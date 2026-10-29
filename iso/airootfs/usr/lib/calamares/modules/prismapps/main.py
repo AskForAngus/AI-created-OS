@@ -246,7 +246,9 @@ def run():
 
     gpu_pkgs, gpu_services, drop_kms = gpu_plan()
     vm_pkgs, vm_services = vm_plan()
-    pacman = list(dict.fromkeys(pacman + gpu_pkgs + vm_pkgs))
+    # The LTS fallback kernel is not on the ISO (keeps it below 2 GB); it is
+    # downloaded here, or after the first boot when installing offline.
+    pacman = list(dict.fromkeys(["linux-lts"] + pacman + gpu_pkgs + vm_pkgs))
 
     plan = {
         "refresh_mirrors": True,
@@ -279,7 +281,7 @@ def run():
         warning(f"prismapps: resolv.conf: {exc}")
 
     set_status("Programme und Treiber werden heruntergeladen und installiert …", 0.15)
-    rc = run_with_progress(root, ["/usr/local/lib/prismos/prism-apply-plan"])
+    rc = run_with_progress(root, ["/usr/lib/prismos/prism-apply-plan", "--installer"])
     debug(f"prismapps: prism-apply-plan beendet mit {rc}")
 
     resolv.unlink(missing_ok=True)
