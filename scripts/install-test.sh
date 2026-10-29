@@ -81,6 +81,11 @@ rm -f "$OUT/airootfs.sfs"
 
 log "Calamares-Schritte nachstellen (fstab, machine-id, Benutzer, Dienste, Anmeldung)"
 genfstab -U "$TARGET" >> "$TARGET/etc/fstab"
+# Without udev in the container genfstab may fall back to device names; use UUIDs like Calamares.
+for dev in $(grep -o '^/dev/loop[0-9]*p[0-9]*' "$TARGET/etc/fstab" | sort -u); do
+    sed -i "s#^$dev[[:space:]]#UUID=$(blkid -s UUID -o value "$dev")\t#" "$TARGET/etc/fstab"
+done
+! grep -q '^/dev/loop' "$TARGET/etc/fstab" || { echo "fstab enthält Gerätenamen" >&2; cat "$TARGET/etc/fstab"; exit 1; }
 if [[ $MODE == uefi ]]; then
     # what Calamares writes for an encrypted root
     echo "$MAPPER UUID=$(blkid -s UUID -o value "${LOOP}p2") none luks" >> "$TARGET/etc/crypttab"

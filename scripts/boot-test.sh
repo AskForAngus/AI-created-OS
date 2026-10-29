@@ -124,7 +124,12 @@ boot_uefi_disk() {
     kill "$pid" 2>/dev/null
     wait "$pid" 2>/dev/null
     echo "== Serielle Konsole (Auszug) =="
-    grep -a -iE "passphrase|cryptsetup|Reached target|Failed|error" "$serial" | head -40
+    grep -a -iE "passphrase|Passwort eingegeben|Graphical Interface|Dependency failed|Failed to" "$serial" | head -40
+    if grep -aq "Graphical Interface" "$serial"; then
+        echo "BOOT-UEFI-VERSCHLÜSSELT: System entsperrt und gestartet"
+    else
+        echo "BOOT-UEFI-VERSCHLÜSSELT: Desktop nicht erreicht"
+    fi
 
     # Same disk with Secure Boot on (Microsoft keys enrolled): firmware must start
     # shim, which asks to enrol PrismOS' key (MokManager) because it is not trusted yet.
