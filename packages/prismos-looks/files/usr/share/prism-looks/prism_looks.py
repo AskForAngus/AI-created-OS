@@ -11,6 +11,8 @@ Usage:
   prism-looks --apply ID      apply a preset (global theme id or key, e.g. "macos")
   prism-looks --save NAME     save the current desktop as a personal look
   prism-looks --list          list presets and personal looks
+  prism-looks --picker        small window to switch between favourite looks
+                              (shortcut Meta+Shift+L)
 """
 
 import argparse
@@ -33,6 +35,7 @@ DATA_HOME = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share"
 USER_LOOKS = DATA_HOME / "prism-looks"
 STATE_DIR = CONFIG_HOME / "prism-looks"
 FIRSTRUN_MARKER = STATE_DIR / "firstrun-done"
+FAVORITES = STATE_DIR / "favorites.json"
 LIVE_USER = "liveuser"
 AUTO_BACKUP = "Automatische Sicherung"
 WALLPAPER_TOKEN = "@PRISM_LOOK_WALLPAPERS@"
@@ -245,6 +248,41 @@ def apply_preset(preset, backup=True):
     if have("plasma-apply-wallpaperimage") and Path(preset["wallpaper"]).exists():
         time.sleep(1)  # let plasmashell finish loading the new layout
         run(["plasma-apply-wallpaperimage", preset["wallpaper"]])
+
+
+# --------------------------------------------------------------------------- favourites
+# A favourite is "preset:<key>" or "look:<folder name in ~/.local/share/prism-looks>".
+
+def load_favorites():
+    try:
+        favs = json.loads(FAVORITES.read_text())
+        return [f for f in favs if isinstance(f, str)]
+    except (OSError, ValueError, TypeError):
+        return []
+
+
+def set_favorite(fav_id, on):
+    favs = [f for f in load_favorites() if f != fav_id]
+    if on:
+        favs.append(fav_id)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    FAVORITES.write_text(json.dumps(favs, indent=2))
+
+
+def favorite_entries():
+    """Favourites that still exist, in the saved order: (id, name, preview, apply function)."""
+    presets = {p["key"]: p for p in load_presets()}
+    looks = {Path(l["path"]).name: l for l in list_looks()}
+    entries = []
+    for fav in load_favorites():
+        kind, _, key = fav.partition(":")
+        if kind == "preset" and key in presets:
+            p = presets[key]
+            entries.append((fav, p["name"], p["preview"], lambda p=p: apply_preset(p)))
+        elif kind == "look" and key in looks:
+            l = looks[key]
+            entries.append((fav, l["name"], l["preview"], lambda path=l["path"]: apply_look(path)))
+    return entries
 
 
 # --------------------------------------------------------------------------- personal looks
@@ -564,8 +602,11 @@ def run_gui(welcome=False):
                 print(f"prism-looks: {exc!r}", file=sys.stderr)
                 self.failed.emit(str(exc))
 
+    FAV_TIP_ON = "Favorit – mit Meta+Umschalt+L schnell wählbar. Klicken entfernt den Stern."
+    FAV_TIP_OFF = "Als Favorit markieren: dann mit Meta+Umschalt+L schnell wählbar"
+
     class Card(QFrame):
-        def __init__(self, title, text, image, buttons, active=False):
+        def __init__(self, title, text, image, buttons, active=False, favorite=None):
             super().__init__()
             self.setFrameShape(QFrame.Shape.StyledPanel)
             self.setObjectName("card")
@@ -581,7 +622,28 @@ def run_gui(welcome=False):
                                          Qt.TransformationMode.SmoothTransformation))
             lay.addWidget(pic)
             head = QLabel(f"<b>{title}</b>" + ("  <span style='color:#2e9d4f'>✓ aktiv</span>" if active else ""))
-            lay.addWidget(head)
+            if favorite:
+                fav_id, is_fav = favorite
+                top = QHBoxLayout()
+                top.addWidget(head)
+                top.addStretch()
+                star = QPushButton("★" if is_fav else "☆")
+                star.setCheckable(True)
+                star.setChecked(is_fav)
+                star.setFlat(True)
+                star.setFixedWidth(36)
+                star.setStyleSheet("font-size:18px;color:#e0a800;")
+
+                def toggled(on, b=star, f=fav_id):
+                    b.setText("★" if on else "☆")
+                    b.setToolTip(FAV_TIP_ON if on else FAV_TIP_OFF)
+                    set_favorite(f, on)
+                star.setToolTip(FAV_TIP_ON if is_fav else FAV_TIP_OFF)
+                star.toggled.connect(toggled)
+                top.addWidget(star)
+                lay.addLayout(top)
+            else:
+                lay.addWidget(head)
             if text:
                 desc = QLabel(text)
                 desc.setWordWrap(True)
@@ -666,13 +728,22 @@ def run_gui(welcome=False):
         # -- pages
         def presets_page(self):
             active = current_lnf()
+            favs = load_favorites()
             cards = []
             for p in load_presets():
+                fav = f"preset:{p['key']}"
                 cards.append(Card(p["name"], p["description"], p["preview"],
                                   [("Anwenden", lambda _=False, p=p: self.busy(
                                       f"„{p['name']}“ wird angewendet …", apply_preset, p), True)],
-                                  active == p["id"]))
-            return grid_page(cards)
+                                  active == p["id"], (fav, fav in favs)))
+            page = QWidget()
+            lay = QVBoxLayout(page)
+            hint = QLabel("Tipp: Mit dem Stern ☆ markierst du Favoriten. Mit <b>Meta+Umschalt+L</b> wechselst "
+                          "du dann jederzeit schnell zwischen ihnen.")
+            hint.setWordWrap(True)
+            lay.addWidget(hint)
+            lay.addWidget(grid_page(cards))
+            return page
 
         def looks_page(self):
             page = QWidget()
@@ -687,14 +758,16 @@ def run_gui(welcome=False):
             row.addStretch()
             lay.addLayout(row)
             cards = []
+            favs = load_favorites()
             for look in list_looks():
                 path = look["path"]
+                fav = f"look:{Path(path).name}"
                 cards.append(Card(look["name"], f"Gespeichert am {look.get('created', '')[:10]}", look["preview"], [
                     ("Anwenden", lambda _=False, p=path, n=look["name"]: self.busy(
                         f"„{n}“ wird angewendet …", apply_look, p), True),
                     ("Exportieren", lambda _=False, p=path: self.export_dialog(p), False),
                     ("Löschen", lambda _=False, p=path, n=look["name"]: self.delete_dialog(p, n), False),
-                ]))
+                ], favorite=(fav, fav in favs)))
             lay.addWidget(grid_page(cards, "Noch keine eigenen Looks. Gestalte deinen Desktop und klicke auf "
                                            "„Aktuellen Look speichern“. Vor jedem Wechsel legt Prism Looks "
                                            "außerdem eine automatische Sicherung an."))
@@ -947,6 +1020,109 @@ def run_gui(welcome=False):
     return app.exec()
 
 
+# --------------------------------------------------------------------------- favourite picker
+
+def run_picker():
+    """Small window in the middle of the screen: pick one of the favourite looks.
+    Arrow keys or 1–9 choose, Enter applies, Esc closes."""
+    from PyQt6.QtCore import QLockFile, QSize, Qt
+    from PyQt6.QtGui import QIcon, QPixmap
+    from PyQt6.QtWidgets import (QApplication, QDialog, QHBoxLayout, QLabel, QListView, QListWidget,
+                                 QListWidgetItem, QPushButton, QVBoxLayout)
+
+    app = QApplication.instance() or QApplication(sys.argv)
+    app.setApplicationName("prism-looks")
+    app.setDesktopFileName("prism-looks-picker")
+    lock = QLockFile(str(Path(os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()) / "prism-looks-picker.lock"))
+    if not lock.tryLock(0):
+        return 0  # already open
+    entries = favorite_entries()
+    active = current_lnf()
+    active_key = next((p["key"] for p in load_presets() if p["id"] == active), None)
+
+    dlg = QDialog()
+    dlg.setWindowTitle("Look wechseln")
+    dlg.setWindowIcon(QIcon.fromTheme("prismos-looks"))
+    dlg.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+    lay = QVBoxLayout(dlg)
+    chosen = []
+
+    if not entries:
+        info = QLabel("<b>Noch keine Favoriten</b><br>Öffne Prism Looks und markiere deine Lieblings-Looks "
+                      "mit dem Stern ☆. Danach kannst du hier mit Meta+Umschalt+L schnell zwischen "
+                      "ihnen wechseln.")
+        info.setWordWrap(True)
+        info.setFixedWidth(380)
+        lay.addWidget(info)
+        row = QHBoxLayout()
+        row.addStretch()
+        open_btn = QPushButton(QIcon.fromTheme("prismos-looks"), "Prism Looks öffnen")
+        open_btn.setDefault(True)
+        open_btn.clicked.connect(lambda: (subprocess.Popen([sys.executable, os.path.abspath(__file__)],
+                                                           start_new_session=True), dlg.accept()))
+        close_btn = QPushButton("Schließen")
+        close_btn.clicked.connect(dlg.reject)
+        row.addWidget(open_btn)
+        row.addWidget(close_btn)
+        lay.addLayout(row)
+    else:
+        lay.addWidget(QLabel("<b>Look wechseln</b> – Pfeiltasten oder 1–9, Enter übernimmt, Esc schließt"))
+        def pick(row):
+            if 0 <= row < len(entries):
+                chosen.append(entries[row])
+                dlg.accept()
+
+        class FavoriteList(QListWidget):
+            def keyPressEvent(self, event):
+                text = event.text()
+                if text.isdigit() and text != "0":
+                    pick(int(text) - 1)
+                elif event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                    pick(self.currentRow())
+                else:
+                    super().keyPressEvent(event)
+
+        view = FavoriteList()
+        view.setViewMode(QListView.ViewMode.IconMode)
+        view.setFlow(QListView.Flow.LeftToRight)
+        view.setWrapping(True)
+        view.setMovement(QListView.Movement.Static)
+        view.setResizeMode(QListView.ResizeMode.Adjust)
+        view.setIconSize(QSize(224, 126))
+        view.setGridSize(QSize(248, 168))
+        view.setUniformItemSizes(True)
+        view.setWordWrap(True)
+        current = 0
+        for i, (fav, name, preview, _) in enumerate(entries):
+            pix = QPixmap(preview) if preview else QPixmap()
+            icon = QIcon(pix) if not pix.isNull() else QIcon.fromTheme("preferences-desktop-theme")
+            label = f"{i + 1}  {name}" if i < 9 else name
+            if fav == f"preset:{active_key}":
+                label += "  ✓"
+                current = i
+            view.addItem(QListWidgetItem(icon, label))
+        columns = min(len(entries), 4)
+        rows = (len(entries) + columns - 1) // columns
+        view.setFixedSize(columns * 248 + 24, min(rows, 3) * 168 + 12)
+        view.setCurrentRow(current)
+        view.itemActivated.connect(lambda item: pick(view.row(item)))
+        lay.addWidget(view)
+        view.setFocus()
+
+    dlg.adjustSize()
+    screen = app.primaryScreen()
+    if screen:
+        geo = screen.availableGeometry()
+        dlg.move(geo.center() - dlg.rect().center())
+    dlg.show()
+    dlg.raise_()
+    dlg.activateWindow()
+    dlg.exec()
+    if chosen:
+        chosen[0][3]()
+    return 0
+
+
 # --------------------------------------------------------------------------- CLI
 
 def main(argv=None):
@@ -955,12 +1131,15 @@ def main(argv=None):
     ap.add_argument("--apply", metavar="ID", help="Vorlage anwenden (z. B. macos, win11)")
     ap.add_argument("--save", metavar="NAME", help="aktuellen Desktop als eigenen Look speichern")
     ap.add_argument("--list", action="store_true", help="Vorlagen und eigene Looks auflisten")
+    ap.add_argument("--picker", action="store_true", help="Favoriten-Auswahl öffnen (Meta+Umschalt+L)")
     ap.add_argument("--auto-theme", action="store_true", help="Hell/Dunkel-Automatik prüfen (vom Timer)")
     args = ap.parse_args(argv)
 
     if args.auto_theme:
         auto_theme_tick()
         return 0
+    if args.picker:
+        return run_picker()
     if args.firstrun:
         if firstrun():
             return run_gui(welcome=True)

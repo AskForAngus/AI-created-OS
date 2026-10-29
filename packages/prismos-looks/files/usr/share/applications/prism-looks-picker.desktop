@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Look wechseln
+GenericName=Favoriten von Prism Looks
+Comment=Schnell zwischen deinen Lieblings-Looks wechseln
+Exec=/usr/bin/prism-looks --picker
+Icon=prismos-looks
+NoDisplay=true
+Categories=Qt;KDE;Settings;DesktopSettings;
+X-KDE-Shortcuts=Meta+Shift+L

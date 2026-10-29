@@ -10,11 +10,13 @@ Nötigste. Alles andere wählst du bei der Installation selbst aus.
 
 | | |
 |---|---|
-| **Jeder Look möglich** | Mit *Prism Looks* wechselst du per Klick zwischen 14 Vorlagen: PrismOS, Windows 11, 10, 7 und XP, macOS, Ubuntu, GNOME, Elementary, Deepin, ChromeOS, Holz, Nord und Minimal. Leisten und Docks passt du mit Schiebereglern an. Eigene Looks speicherst du und teilst sie als `.prismlook`-Datei. Auf Wunsch wechselt das System automatisch zwischen hell und dunkel. Den Look wählst du schon im Installer. |
+| **Jeder Look möglich** | Mit *Prism Looks* wechselst du per Klick zwischen 14 Vorlagen: PrismOS, Windows 11, 10, 7 und XP, macOS, Ubuntu, GNOME, Elementary, Deepin, ChromeOS, Holz, Nord und Minimal. Leisten und Docks passt du mit Schiebereglern an. Eigene Looks speicherst du und teilst sie als `.prismlook`-Datei. Lieblings-Looks markierst du mit einem Stern und wechselst mit **Meta+Umschalt+L** in einem kleinen Fenster schnell zwischen ihnen. Auf Wunsch wechselt das System automatisch zwischen hell und dunkel. Den Look wählst du schon im Installer. |
 | **Keine Bloatware** | Vorinstalliert sind nur der Desktop, Dateimanager, Terminal, Texteditor, Archivprogramm, Screenshot-Werkzeug und das Software-Center. Alle weiteren Programme kreuzt du im Installer an, standardmäßig ist nichts ausgewählt. |
 | **Programmauswahl im Installer** | Browser, Kommunikation, Office, Medien, Entwicklung, System-Werkzeuge und Design-Extras, aus den Arch-Paketquellen oder von Flathub. Sprachpakete (z. B. Firefox auf Deutsch) kommen automatisch dazu. Flatpaks installieren sich nach dem ersten Start im Hintergrund, eine Benachrichtigung meldet, wenn sie fertig sind. |
 | **Läuft auf jeder 64-Bit-Hardware** | BIOS und UEFI, auch mit eingeschaltetem **Secure Boot** auf installierten Systemen. Unterstützt Intel-, AMD- und NVIDIA-Grafik, Laptops und Desktops sowie virtuelle Maschinen. NVIDIA-Karten (ab GTX 16xx/RTX) und virtuelle Maschinen werden erkannt, die passenden Treiber installiert. |
 | **Akku & Leistung** | Zen-Kernel für flüssiges Arbeiten (LTS-Kernel als Notfall im Bootmenü). **Ladegrenze 80 %** (abschaltbar), im Akkubetrieb automatisch „Energiesparen“. Dazu zram statt Swap-Datei, Audio- und WLAN-Stromsparen, passende I/O-Scheduler, keine Hintergrund-Indizierung, kein Watchdog. |
+| **Gaming-Modus** | Ein Controller-Knopf in der Leiste lädt die besten Einstellungen zum Spielen: volle Leistung, keine Benachrichtigungen und keine Hintergrund-Wartung, höchste Bildwiederholrate mit Adaptive Sync. Ein zweiter Klick stellt alles wieder her. |
+| **Netzwerk auf einen Blick** | Ein Klick auf das Netzwerk-Symbol zeigt alle Verbindungsdaten: IP-Adressen, Gateway, DNS, MAC, WLAN-Signal, Kanal, aktuelle Datenrate. Auf Knopfdruck auch öffentliche IP mit Anbieter, Ping und Geschwindigkeitstest. |
 | **Sicher zurück** | Btrfs mit **automatischen Snapshots** vor und nach jeder Installation und jedem Update. Den früheren Stand stellst du mit einem Klick wieder her. |
 | **Verschlüsselung (freiwillig)** | Ein Häkchen im Installer. Entsperren lässt sich die Festplatte mit dem Passwort, zusätzlich mit einer **PIN** (TPM-Chip) oder einem **USB-Stick** als Schlüssel. |
 | **Updates für PrismOS selbst** | Prism Looks, die Looks und die Systemeinstellungen kommen aus einer eigenen, **signierten Paketquelle** und aktualisieren sich mit `pacman -Syu` oder Discover. |
@@ -68,12 +70,17 @@ LTS-Notfallkernel werden dann automatisch installiert, sobald der Computer onlin
   * **Leisten:** Position, Größe, schwebend, Dock
   * **Hell & Dunkel:** automatisch nach Uhrzeit oder Sonnenstand, standardmäßig aus
   * **Meine Looks** speichert dein Ergebnis. Vor jedem Wechsel wird automatisch eine Sicherung angelegt.
+  * **Favoriten:** Stern ☆ an Vorlagen und eigenen Looks. **Meta+Umschalt+L** öffnet in der Bildschirmmitte
+    die Auswahl (Pfeiltasten oder 1–9, Enter übernimmt). Die Tastenkombination änderst du unter
+    Systemeinstellungen → Tastatur → Tastenkürzel → „Look wechseln“.
 * **Prism Einstellungen** (im Startmenü):
   * **Akku:** Ladegrenze, automatisches Energieprofil
+  * **Gaming:** was der Gaming-Modus umstellt (Leistung, Ruhe, Bildschirm), ein- und ausschalten
   * **Snapshots:** ansehen, erstellen, auf einen früheren Stand zurücksetzen
   * **Sicherheit:** PIN oder USB-Stick zum Entsperren einrichten, Passwort ändern
 * **Discover** installiert und aktualisiert Programme aus Arch Linux, Flathub und PrismOS.
-* Im Terminal: `sudo pacman -Syu` aktualisiert das System, `prism-looks --apply macos` wechselt den Look.
+* Im Terminal: `sudo pacman -Syu` aktualisiert das System, `prism-looks --apply macos` wechselt den Look,
+  `prism-gaming toggle` schaltet den Gaming-Modus, `prism-netinfo` zeigt die Netzwerkdaten als JSON.
 * Bootmenü: Der erste Eintrag startet den Zen-Kernel. Falls nach einem Update etwas nicht läuft,
   wähle den Eintrag mit **LTS**.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prism Einstellungen – Akku, Snapshots und Verschlüsselung von PrismOS.
+"""Prism Einstellungen – Akku, Gaming, Snapshots und Verschlüsselung von PrismOS.
 
 Reads status without special rights; every change goes through
 pkexec /usr/lib/prismos/prism-admin, which asks for the password once.
@@ -11,6 +11,9 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import prism_gaming  # noqa: E402
 
 ADMIN = "/usr/lib/prismos/prism-admin"
 BATTERY_CONF = Path("/etc/prismos/battery.conf")
@@ -120,6 +123,7 @@ def main():
             idx = self.tabs.currentIndex()
             self.tabs.clear()
             self.tabs.addTab(self.battery_page(), QIcon.fromTheme("battery"), "Akku")
+            self.tabs.addTab(self.gaming_page(), QIcon.fromTheme("input-gaming"), "Gaming")
             self.tabs.addTab(self.snapshot_page(), QIcon.fromTheme("document-revert"), "Snapshots")
             self.tabs.addTab(self.security_page(), QIcon.fromTheme("security-high"), "Sicherheit")
             self.tabs.setCurrentIndex(max(idx, 0))
@@ -182,6 +186,74 @@ def main():
             row.addWidget(full)
             row.addStretch()
             row.addWidget(save)
+            lay.addLayout(row)
+            lay.addStretch()
+            return page
+
+        # -- gaming
+        def gaming_page(self):
+            page = QWidget()
+            lay = QVBoxLayout(page)
+            info = QLabel("Der Gaming-Modus lädt mit einem Klick die besten Einstellungen zum Spielen – "
+                          "über den Controller-Knopf in der Leiste oder hier. Beim Ausschalten wird alles "
+                          "wiederhergestellt.")
+            info.setWordWrap(True)
+            lay.addWidget(info)
+            cfg = prism_gaming.load_config()
+            parts = [
+                ("performance", "Volle Leistung",
+                 "Energieprofil „Leistung“, Ladegrenze kurz aufgehoben, keine automatische Umschaltung im Akkubetrieb."),
+                ("quiet", "Ruhe beim Spielen",
+                 "Keine Benachrichtigungen, kein Bildschirmschoner, Wartung im Hintergrund (Updates, Aufräumen) "
+                 "pausiert, aufwendige Fenstereffekte aus."),
+                ("display", "Bildschirm optimieren",
+                 "Höchste Bildwiederholrate bei gleicher Auflösung und Adaptive Sync (VRR), wenn der Bildschirm es kann."),
+            ]
+            boxes = {}
+            for key, title, text in parts:
+                box = QCheckBox(title)
+                box.setChecked(bool(cfg.get(key)))
+                hint = QLabel(text)
+                hint.setWordWrap(True)
+                hint.setContentsMargins(24, 0, 0, 8)
+                hint.setEnabled(False)
+                lay.addWidget(box)
+                lay.addWidget(hint)
+                boxes[key] = box
+
+            def save():
+                prism_gaming.save_config({k: b.isChecked() for k, b in boxes.items()})
+            for b in boxes.values():
+                b.toggled.connect(save)
+
+            row = QHBoxLayout()
+            state = QLabel()
+            switch = QPushButton()
+
+            def show():
+                on = prism_gaming.is_on()
+                state.setText("<b>Gaming-Modus ist an</b>" if on else "Gaming-Modus ist aus")
+                switch.setText("Gaming-Modus ausschalten" if on else "Gaming-Modus einschalten")
+                switch.setIcon(QIcon.fromTheme("input-gaming"))
+
+            def toggle():
+                save()
+                switch.setEnabled(False)
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+                try:
+                    subprocess.run(["prism-gaming", "toggle"], timeout=120)
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+                finally:
+                    QApplication.restoreOverrideCursor()
+                    switch.setEnabled(True)
+                show()
+
+            switch.clicked.connect(toggle)
+            show()
+            row.addWidget(state)
+            row.addStretch()
+            row.addWidget(switch)
             lay.addLayout(row)
             lay.addStretch()
             return page

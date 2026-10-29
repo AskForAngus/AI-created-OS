@@ -7,6 +7,18 @@ function prismAdd(panel, plugin, config) {
     } catch (e) {
         print("PrismOS: Widget " + plugin + " fehlt: " + e);
     }
+    if (widget && plugin === "org.kde.plasma.systemtray") {
+        // PrismOS' own network widget replaces the tray icon: move it into the expander.
+        try {
+            var tray = desktopById(widget.readConfig("SystrayContainmentId"));
+            if (tray) {
+                tray.currentConfigGroup = ["General"];
+                tray.writeConfig("hiddenItems", ["org.kde.plasma.networkmanagement"]);
+            }
+        } catch (e) {
+            print("PrismOS: Systemleiste nicht angepasst: " + e);
+        }
+    }
     if (!widget || !config) {
         return widget;
     }
@@ -79,6 +91,14 @@ var prismPanels = [
             "fill": true
           }
         }
+      ],
+      [
+        "org.prismos.gamemode",
+        null
+      ],
+      [
+        "org.prismos.network",
+        null
       ],
       [
         "org.kde.plasma.systemtray",

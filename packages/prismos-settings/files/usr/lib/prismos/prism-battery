@@ -25,6 +25,7 @@ apply-limit)
     ;;
 power-changed)
     [ "$AUTO_PROFILE" = yes ] || exit 0
+    [ -e /run/prismos/gaming ] && exit 0  # gaming mode keeps "performance"
     command -v powerprofilesctl >/dev/null || exit 0
     on_mains=0
     found=0

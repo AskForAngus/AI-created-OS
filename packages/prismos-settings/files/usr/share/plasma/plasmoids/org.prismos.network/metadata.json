@@ -1,0 +1,17 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [{ "Name": "PrismOS" }],
+        "Category": "System Information",
+        "Description": "Shows all details of your network connections",
+        "Description[de]": "Zeigt alle Details deiner Netzwerkverbindungen",
+        "Icon": "network-wireless",
+        "Id": "org.prismos.network",
+        "License": "GPL-2.0-or-later",
+        "Name": "Network overview",
+        "Name[de]": "Netzwerk-Übersicht",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

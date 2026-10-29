@@ -177,4 +177,14 @@ fi
 [[ ! -e $TARGET/usr/local/lib/prismos-live ]] || { echo "Live-Skripte nicht entfernt" >&2; exit 1; }
 ls "$TARGET/usr/share/Kvantum" || true
 
+log "Gaming-Modus, Netzwerk-Übersicht, Look-Favoriten"
+for p in org.prismos.gamemode org.prismos.network; do
+    in_target python3 -c "import json; json.load(open('/usr/share/plasma/plasmoids/$p/metadata.json'))"
+done
+grep -q "org.prismos.network" "$TARGET/usr/share/plasma/look-and-feel/$LOOK/contents/layouts/org.kde.plasma.desktop-layout.js"
+in_target runuser -u nobody -- env HOME=/tmp prism-gaming status
+in_target prism-netinfo | python3 -c "import json, sys; d = json.load(sys.stdin); assert d['kind'] == 'overview', d; print(d)"
+in_target runuser -u nobody -- env HOME=/tmp prism-looks --list >/dev/null
+grep -q "Meta+Shift+L" "$TARGET/etc/xdg/kglobalshortcutsrc"
+
 log "Installation simuliert ($MODE): $DISK"
