@@ -1,0 +1,22 @@
+#!/bin/sh
+# Encrypted UEFI installs keep kernels and initramfs images on the EFI system
+# partition (/boot/efi/prismos), so they can be loaded before the disk is
+# unlocked with password, PIN or USB stick. Copies them there from /boot.
+#   prism-esp-sync [--root DIR]   take /boot from DIR (used after a rollback)
+set -eu
+ROOT=
+[ "${1:-}" = --root ] && ROOT=$2
+[ -e /etc/prismos/esp-boot ] || exit 0
+DEST=/boot/efi/prismos
+mkdir -p "$DEST"
+for f in "$ROOT"/boot/vmlinuz-* "$ROOT"/boot/initramfs-*.img; do
+    [ -e "$f" ] || continue
+    case "$f" in *-fallback.img) continue ;; esac
+    cp -f "$f" "$DEST/$(basename "$f").new"
+    mv -f "$DEST/$(basename "$f").new" "$DEST/$(basename "$f")"
+done
+# drop kernels that are no longer installed
+for f in "$DEST"/vmlinuz-* "$DEST"/initramfs-*.img; do
+    [ -e "$f" ] || continue
+    [ -e "$ROOT/boot/$(basename "$f")" ] || rm -f "$f"
+done

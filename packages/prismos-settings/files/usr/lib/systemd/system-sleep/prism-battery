@@ -1,0 +1,4 @@
+#!/bin/sh
+# Some firmwares forget the charge limit during suspend.
+[ "$1" = post ] && /usr/lib/prismos/prism-battery apply-limit
+exit 0

@@ -80,26 +80,51 @@ def ensure_keyring():
     if not Path("/etc/pacman.d/gnupg/trustdb.gpg").exists():
         run(["pacman-key", "--init"])
         run(["pacman-key", "--populate", "archlinux"])
+    if Path("/usr/share/pacman/keyrings/prismos.gpg").exists():
+        run(["pacman-key", "--populate", "prismos"])
+
+
+PACMAN = ["pacman"]
+
+
+def without_prismos_repo():
+    """pacman configuration without the PrismOS repository, used when it cannot
+    be reached, so that a GitHub outage does not block installing programs."""
+    conf = Path("/run/prismos-pacman.conf")
+    lines, skip = [], False
+    for line in Path("/etc/pacman.conf").read_text().splitlines():
+        if line.strip().startswith("["):
+            skip = line.strip() == "[prismos]"
+        if not skip:
+            lines.append(line)
+    conf.write_text("\n".join(lines) + "\n")
+    return ["pacman", "--config", str(conf)]
 
 
 def package_exists(name):
-    return subprocess.run(["pacman", "-Si", name], stdout=subprocess.DEVNULL,
+    return subprocess.run([*PACMAN, "-Si", name], stdout=subprocess.DEVNULL,
                           stderr=subprocess.DEVNULL).returncode == 0
 
 
 def install_packages(plan):
+    global PACMAN
     ensure_keyring()
-    if run(["pacman", "-Sy", "--noconfirm"]) != 0:
-        return
+    if run([*PACMAN, "-Sy", "--noconfirm"]) != 0:
+        if "[prismos]" not in Path("/etc/pacman.conf").read_text():
+            return
+        log("PrismOS-Paketquelle nicht erreichbar, weiter ohne sie")
+        PACMAN = without_prismos_repo()
+        if run([*PACMAN, "-Sy", "--noconfirm"]) != 0:
+            return
     optional = [p for p in plan.get("pacman_optional", []) if package_exists(p)]
     wanted = list(dict.fromkeys(plan.get("pacman", []) + optional))
-    if run(["pacman", "-Su", "--noconfirm", "--needed", *wanted]) == 0:
+    if run([*PACMAN, "-Su", "--noconfirm", "--needed", *wanted]) == 0:
         plan["pacman"], plan["pacman_optional"] = [], []
     else:
         # Something in the batch failed: try one by one so one bad name does not block the rest.
         failed = []
         for pkg in wanted:
-            if run(["pacman", "-S", "--noconfirm", "--needed", pkg]) != 0:
+            if run([*PACMAN, "-S", "--noconfirm", "--needed", pkg]) != 0:
                 failed.append(pkg)
         plan["pacman"] = [p for p in failed if p in plan.get("pacman", [])]
         plan["pacman_optional"] = []

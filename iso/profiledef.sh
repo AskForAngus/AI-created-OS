@@ -23,4 +23,5 @@ file_permissions=(
   ["/usr/local/bin/prism-installer"]="0:0:755"
   ["/usr/local/bin/prism-live-setup"]="0:0:755"
   ["/usr/local/lib/prismos-live/prism-target-cleanup"]="0:0:755"
+  ["/usr/local/lib/prismos-live/prism-target-finalize"]="0:0:755"
 )

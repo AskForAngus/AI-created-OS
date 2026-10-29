@@ -1,7 +1,12 @@
 #!/bin/sh
 # Regenerate the GRUB menu, but only once GRUB has been set up
 # (during the installation the bootloader step does this itself).
-for cfg in /boot/grub/grub.cfg /boot/efi/grub/grub.cfg; do
+# Encrypted installs use PrismOS' own entries (09_prismos_esp) instead of
+# 10_linux, which would point GRUB at the encrypted disk.
+if [ -e /etc/prismos/esp-boot ] && [ -x /etc/grub.d/10_linux ]; then
+    chmod -x /etc/grub.d/10_linux
+fi
+for cfg in /boot/efi/grub/grub.cfg /boot/grub/grub.cfg; do
     if [ -f "$cfg" ]; then
         exec grub-mkconfig -o "$cfg"
     fi

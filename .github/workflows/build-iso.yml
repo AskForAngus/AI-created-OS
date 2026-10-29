@@ -38,6 +38,8 @@ jobs:
           df -h / /mnt
 
       - name: ISO im Arch-Linux-Container bauen
+        env:
+          PRISMOS_SIGNING_KEY: ${{ secrets.PRISMOS_SIGNING_KEY }}
         run: |
           version="$(date +%Y.%m.%d)"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then version="${GITHUB_REF#refs/tags/v}"; fi
@@ -48,6 +50,8 @@ jobs:
             -v /mnt/prismos/out:/out \
             -e WORK_DIR=/work/build \
             -e PRISMOS_VERSION="$version" \
+            -e PRISMOS_SIGNING_KEY \
+            -e PRISMOS_REPO_ENABLED="${{ github.ref == 'refs/heads/main' && '1' || '' }}" \
             archlinux:latest \
             bash /src/scripts/build-iso.sh /out 2>&1 | sudo tee /mnt/prismos/build.log
 
@@ -80,12 +84,25 @@ jobs:
           bash scripts/boot-test.sh --disk /mnt/prismos/install-test/disk.img "$RUNNER_TEMP/boot-test"
           sudo rm -f /mnt/prismos/install-test/disk.img
 
+      - name: Verschlüsselte UEFI-Installation simulieren und booten (Btrfs, Snapshots, Secure Boot)
+        continue-on-error: true
+        run: |
+          sudo docker run --rm --privileged -v /dev:/dev -v /mnt/prismos:/mnt/prismos \
+            -v "$GITHUB_WORKSPACE:/src:ro" archlinux:latest \
+            bash /src/scripts/install-test.sh /mnt/prismos/out/prismos-*.iso /mnt/prismos/install-test-uefi uefi
+          echo "INSTALL-TEST-UEFI: Installation erfolgreich"
+          sudo chmod 666 /mnt/prismos/install-test-uefi/disk.img
+          bash scripts/boot-test.sh --uefi-disk /mnt/prismos/install-test-uefi/disk.img "$RUNNER_TEMP/boot-test"
+          sudo rm -f /mnt/prismos/install-test-uefi/disk.img
+
       - name: Boot-Test-Screenshots hochladen
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: boot-test-screenshots
-          path: ${{ runner.temp }}/boot-test/*.png
+          path: |
+            ${{ runner.temp }}/boot-test/*.png
+            ${{ runner.temp }}/boot-test/*.log
           if-no-files-found: ignore
 
       - name: ISO als Artefakt hochladen
@@ -95,6 +112,25 @@ jobs:
           path: /mnt/prismos/out/prismos-*
           compression-level: 0
           retention-days: 14
+
+      - name: PrismOS-Paketquelle für Updates veröffentlichen
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir=/mnt/prismos/out/repo
+          if [ ! -d "$dir" ]; then
+            echo "::notice::Kein Signierschlüssel (Secret PRISMOS_SIGNING_KEY) – Paketquelle wird nicht veröffentlicht."
+            exit 0
+          fi
+          gh release view repo -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create repo -R "$GITHUB_REPOSITORY" --latest=false --title "PrismOS-Paketquelle" \
+              --notes "Signierte Pakete für Updates installierter PrismOS-Systeme. pacman lädt sie automatisch – zum Installieren bitte die ISO aus den anderen Releases nehmen."
+          gh release upload repo -R "$GITHUB_REPOSITORY" --clobber "$dir"/*
+          current=$(ls "$dir")
+          for asset in $(gh release view repo -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'); do
+            grep -qxF "$asset" <<<"$current" || gh release delete-asset repo "$asset" -R "$GITHUB_REPOSITORY" -y
+          done
 
       - name: Für Release vorbereiten (Dateien > 2 GiB werden geteilt)
         if: startsWith(github.ref, 'refs/tags/v') || inputs.release

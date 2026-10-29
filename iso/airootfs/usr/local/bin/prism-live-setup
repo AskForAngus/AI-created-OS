@@ -37,6 +37,13 @@ Section "InputClass"
 EndSection
 CONF
 
+# Encryption needs UEFI (kernels are kept on the EFI partition so PIN or USB
+# stick can unlock the disk); hide the option on BIOS computers.
+if [ ! -d /sys/firmware/efi ]; then
+    sed -i 's/^enableLuksAutomatedPartitioning: true/enableLuksAutomatedPartitioning: false/' \
+        /etc/calamares/modules/partition.conf
+fi
+
 as_user() { install -Dm644 -o "$user" -g "$user" /dev/stdin "$home/$1"; }
 as_user .config/kxkbrc <<'CONF'
 [Layout]

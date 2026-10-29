@@ -39,6 +39,8 @@ mkdir -p "$WORK/pkgbuild" "$WORK/localrepo" "$OUT"
 id builder &>/dev/null || useradd -m builder
 echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
 export PRISMOS_PKGVER=${PRISMOS_PKGVER:-$(date +%Y.%m.%d.%H%M)}
+REPO_PACKAGES_EXTRA="$WORK/extra-packages"
+: > "$REPO_PACKAGES_EXTRA"
 
 build_pkg() {  # name [makepkg options]
     local name=$1
@@ -53,6 +55,67 @@ build_pkg calamares --syncdeps --needed
 # PrismOS' own packages only contain files; their dependencies are installed with the ISO.
 build_pkg prismos-settings --nodeps
 build_pkg prismos-looks --nodeps
+build_pkg shim-signed --nodeps
+
+# Signed PrismOS repository for updates (only with a signing key, see README).
+if [[ -n ${PRISMOS_SIGNING_KEY:-} ]]; then
+    log "PrismOS-Pakete signieren"
+    export GNUPGHOME="$WORK/gnupg"
+    install -d -m700 "$GNUPGHOME"
+    gpg --batch --quiet --import <<<"$PRISMOS_SIGNING_KEY"
+    FPR=$(gpg --batch --with-colons --list-secret-keys | awk -F: '/^fpr/ { print $10; exit }')
+    echo "Signierschlüssel: $FPR"
+    # prismos-keyring: lets pacman trust the key on installed systems
+    kr="$WORK/pkgbuild/prismos-keyring"
+    mkdir -p "$kr"
+    gpg --batch --export "$FPR" > "$kr/prismos.gpg"
+    echo "$FPR:4:" > "$kr/prismos-trusted"
+    : > "$kr/prismos-revoked"
+    cat > "$kr/PKGBUILD" <<'PKG'
+pkgname=prismos-keyring
+pkgver=${PRISMOS_PKGVER:-0.1}
+pkgrel=1
+pkgdesc='PrismOS: Schlüssel der PrismOS-Paketquelle'
+arch=('any')
+license=('GPL-3.0-or-later')
+install=prismos-keyring.install
+package() {
+  install -Dm644 -t "$pkgdir/usr/share/pacman/keyrings" "$startdir/prismos.gpg" \
+      "$startdir/prismos-trusted" "$startdir/prismos-revoked"
+}
+PKG
+    cat > "$kr/prismos-keyring.install" <<'PKG'
+post_install() {
+  if [ -f /etc/pacman.d/gnupg/trustdb.gpg ]; then
+    pacman-key --populate prismos >/dev/null 2>&1 || true
+  fi
+}
+post_upgrade() {
+  post_install
+}
+PKG
+    chown -R builder: "$kr"
+    (cd "$kr" && sudo -u builder --preserve-env=PRISMOS_PKGVER makepkg --noconfirm --nodeps)
+    cp "$kr"/prismos-keyring-[0-9]*.pkg.tar.zst "$WORK/localrepo/"
+    # Installed systems use the repository only if it is published (from main).
+    if [[ ${PRISMOS_REPO_ENABLED:-} == 1 ]]; then
+        echo prismos-keyring >> "$REPO_PACKAGES_EXTRA"
+    fi
+
+    mkdir -p "$OUT/repo"
+    for pkg in "$WORK"/localrepo/prismos-*.pkg.tar.zst; do
+        gpg --batch --yes --detach-sign -u "$FPR" "$pkg"
+        cp "$pkg" "$pkg.sig" "$OUT/repo/"
+    done
+    repo-add --sign --key "$FPR" "$OUT/repo/prismos.db.tar.gz" "$OUT"/repo/prismos-*.pkg.tar.zst
+    # GitHub release assets cannot be symlinks
+    for f in prismos.db prismos.db.sig prismos.files prismos.files.sig; do
+        [ -L "$OUT/repo/$f" ] && cp --remove-destination "$(readlink -f "$OUT/repo/$f")" "$OUT/repo/$f"
+    done
+    ls -l "$OUT/repo"
+else
+    echo "Hinweis: kein PRISMOS_SIGNING_KEY – Pakete unsigniert, keine Paketquelle für Updates." >&2
+fi
 repo-add "$WORK/localrepo/prismos-local.db.tar.gz" "$WORK"/localrepo/*.pkg.tar.zst
 
 log "Calamares-Module prüfen"
@@ -87,6 +150,7 @@ grep -rq "vmlinuz-linux-zen" "$PROFILE/efiboot" "$PROFILE/grub" "$PROFILE/syslin
     { echo "Bootmenüs konnten nicht angepasst werden." >&2; exit 1; }
 
 sed "s|@LOCALREPO@|$WORK/localrepo|" "$REPO/iso/pacman.conf.in" > "$PROFILE/pacman.conf"
+cat "$REPO_PACKAGES_EXTRA" >> "$PROFILE/packages.x86_64"
 sed -i "s|@VERSION@|$VERSION|g" "$PROFILE/airootfs/etc/calamares/branding/prismos/branding.desc"
 if [[ -n ${NO_PLASMALNF:-} ]]; then
     sed -i '/^  - plasmalnf$/d' "$PROFILE/airootfs/etc/calamares/settings.conf"

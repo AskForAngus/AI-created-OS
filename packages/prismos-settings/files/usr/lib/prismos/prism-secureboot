@@ -1,0 +1,29 @@
+#!/bin/sh
+# Secure Boot with shim: PrismOS signs GRUB and the kernels with a key that
+# belongs to this computer only (Machine Owner Key, MOK). shim is signed by
+# Microsoft, so firmware with Secure Boot enabled starts it; shim then trusts
+# everything signed with the MOK once it has been enrolled.
+#   prism-secureboot sign-kernels   sign /boot/vmlinuz-* (and ESP copies)
+set -eu
+KEYDIR=/etc/prismos/secureboot
+[ -f "$KEYDIR/MOK.key" ] || exit 0
+command -v sbsign >/dev/null || exit 0
+
+sign() {
+    if ! sbverify --cert "$KEYDIR/MOK.crt" "$1" >/dev/null 2>&1; then
+        sbsign --key "$KEYDIR/MOK.key" --cert "$KEYDIR/MOK.crt" --output "$1.signed" "$1"
+        mv -f "$1.signed" "$1"
+    fi
+}
+
+case "${1:-}" in
+sign-kernels)
+    for k in /boot/vmlinuz-* /boot/efi/prismos/vmlinuz-*; do
+        [ -f "$k" ] && sign "$k"
+    done
+    ;;
+*)
+    echo "Aufruf: prism-secureboot sign-kernels" >&2
+    exit 2
+    ;;
+esac

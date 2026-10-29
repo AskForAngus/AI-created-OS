@@ -33,6 +33,14 @@ f2fs-tools
 ntfs-3g
 xfsprogs
 
+# --- Snapshots, Verschlüsselung, Secure Boot
+snapper
+snap-pac
+tpm2-tss
+shim-signed
+mokutil
+sbsigntools
+
 # --- Akku & Leistung
 power-profiles-daemon
 switcheroo-control

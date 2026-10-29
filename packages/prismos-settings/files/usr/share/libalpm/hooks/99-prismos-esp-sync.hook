@@ -1,0 +1,17 @@
+# Copy kernels and initramfs images to the EFI partition (encrypted installs only).
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Path
+Target = usr/lib/modules/*/vmlinuz
+Target = usr/lib/initcpio/*
+Target = usr/lib/firmware/*
+Target = usr/lib/systemd/*
+Target = usr/lib/udev/*
+Target = usr/src/*/dkms.conf
+
+[Action]
+Description = Kernel auf die EFI-Partition kopieren...
+When = PostTransaction
+Exec = /usr/lib/prismos/prism-esp-sync

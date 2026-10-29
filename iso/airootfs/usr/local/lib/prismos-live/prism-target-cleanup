@@ -46,10 +46,22 @@ rm -f /etc/systemd/system/prism-live-setup.service \
       /etc/sudoers.d/10-liveuser /etc/polkit-1/rules.d/49-liveuser.rules \
       /etc/sddm.conf.d/50-live-autologin.conf \
       /etc/xdg/reflector/reflector.conf.pacnew
-rm -rf /etc/calamares /usr/lib/calamares /usr/share/calamares /usr/local/lib/prismos-live
+rm -rf /etc/calamares /usr/lib/calamares /usr/share/calamares
 
 # 4. pacman: colours and parallel downloads.
 sed -i -e 's/^#Color$/Color/' -e 's/^#\?ParallelDownloads.*/ParallelDownloads = 8/' /etc/pacman.conf
+
+# PrismOS repository for updates of PrismOS' own packages (only in ISOs built
+# with the signing key, which ship prismos-keyring).
+if [ -f /usr/share/pacman/keyrings/prismos.gpg ] && ! grep -q '^\[prismos\]' /etc/pacman.conf; then
+    cat >> /etc/pacman.conf <<'CONF'
+
+# PrismOS: Updates für Prism Looks, Einstellungen und Looks (signiert)
+[prismos]
+SigLevel = Required DatabaseOptional
+Server = https://github.com/AskForAngus/AI-created-OS/releases/download/repo
+CONF
+fi
 
 # 5. Intel CPUs: thermald keeps them cool without throttling too early.
 if grep -q GenuineIntel /proc/cpuinfo; then

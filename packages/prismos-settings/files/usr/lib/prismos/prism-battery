@@ -1,0 +1,47 @@
+#!/bin/sh
+# PrismOS battery helper.
+#   prism-battery apply-limit     write the charge limit from /etc/prismos/battery.conf
+#   prism-battery power-changed   pick a power profile for battery or mains power
+CONF=/etc/prismos/battery.conf
+CHARGE_LIMIT=80
+AUTO_PROFILE=yes
+[ -r "$CONF" ] && . "$CONF"
+
+case "$1" in
+apply-limit)
+    for bat in /sys/class/power_supply/BAT*; do
+        [ -w "$bat/charge_control_end_threshold" ] || continue
+        # Some firmwares need the start threshold below the end threshold.
+        if [ -w "$bat/charge_control_start_threshold" ]; then
+            start=$((CHARGE_LIMIT - 5))
+            [ "$CHARGE_LIMIT" -ge 100 ] && start=95
+            echo 0 > "$bat/charge_control_start_threshold" 2>/dev/null
+            echo "$CHARGE_LIMIT" > "$bat/charge_control_end_threshold"
+            echo "$start" > "$bat/charge_control_start_threshold" 2>/dev/null
+        else
+            echo "$CHARGE_LIMIT" > "$bat/charge_control_end_threshold"
+        fi
+    done
+    ;;
+power-changed)
+    [ "$AUTO_PROFILE" = yes ] || exit 0
+    command -v powerprofilesctl >/dev/null || exit 0
+    on_mains=0
+    found=0
+    for ps in /sys/class/power_supply/*; do
+        [ "$(cat "$ps/type" 2>/dev/null)" = Mains ] || continue
+        found=1
+        [ "$(cat "$ps/online" 2>/dev/null)" = 1 ] && on_mains=1
+    done
+    [ "$found" = 1 ] || exit 0  # desktop PC without battery/charger: leave as is
+    if [ "$on_mains" = 1 ]; then
+        powerprofilesctl set balanced
+    else
+        powerprofilesctl set power-saver
+    fi
+    ;;
+*)
+    echo "Aufruf: prism-battery apply-limit|power-changed" >&2
+    exit 2
+    ;;
+esac

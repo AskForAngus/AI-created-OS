@@ -1,0 +1,10 @@
+[Unit]
+Description=PrismOS: Akku-Ladegrenze setzen
+After=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/prismos/prism-battery apply-limit
+
+[Install]
+WantedBy=multi-user.target

@@ -8,8 +8,8 @@ pkgdesc='PrismOS: Systemeinstellungen für Leistung, Akku und Updates'
 arch=('any')
 url='https://github.com/AskForAngus/AI-created-OS'
 license=('GPL-3.0-or-later')
-depends=('python' 'reflector' 'zram-generator' 'power-profiles-daemon' 'flatpak' 'pacman-contrib' 'glib2')
-backup=('etc/xdg/kdeglobals' 'etc/xdg/baloofilerc' 'etc/makepkg.conf.d/10-prismos.conf')
+depends=('python' 'python-pyqt6' 'polkit' 'reflector' 'zram-generator' 'power-profiles-daemon' 'flatpak' 'pacman-contrib' 'glib2')
+backup=('etc/xdg/kdeglobals' 'etc/xdg/baloofilerc' 'etc/makepkg.conf.d/10-prismos.conf' 'etc/prismos/battery.conf')
 install=prismos-settings.install
 
 package() {
