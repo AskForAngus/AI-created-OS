@@ -125,10 +125,12 @@ boot_uefi_disk() {
     wait "$pid" 2>/dev/null
     echo "== Serielle Konsole (Auszug) =="
     grep -a -iE "passphrase|Passwort eingegeben|Graphical Interface|Dependency failed|Failed to" "$serial" | head -40
-    if grep -aq "Graphical Interface" "$serial"; then
-        echo "BOOT-UEFI-VERSCHLÜSSELT: System entsperrt und gestartet"
+    # With "quiet" systemd prints only problems; the desktop is checked on the screenshot.
+    if grep -aq "Passwort eingegeben" "$serial" && grep -aq "hostname=prismos" "$serial" &&
+        ! grep -aqi "emergency mode" "$serial"; then
+        echo "BOOT-UEFI-VERSCHLÜSSELT: Festplatte entsperrt, System gestartet"
     else
-        echo "BOOT-UEFI-VERSCHLÜSSELT: Desktop nicht erreicht"
+        echo "BOOT-UEFI-VERSCHLÜSSELT: Start fehlgeschlagen"
     fi
 
     # Same disk with Secure Boot on (Microsoft keys enrolled): firmware must start
