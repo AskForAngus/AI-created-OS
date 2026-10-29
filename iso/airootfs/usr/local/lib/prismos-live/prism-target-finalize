@@ -14,8 +14,10 @@ root_src=$(findmnt -no SOURCE /)
 root_dev=${root_src%%[*}
 fstype=$(findmnt -no FSTYPE /)
 uefi=no
-# PRISMOS_FORCE_UEFI: only for scripts/install-test.sh, which runs without EFI firmware
-{ [ -d /sys/firmware/efi ] || [ "${PRISMOS_FORCE_UEFI:-}" = 1 ]; } && uefi=yes
+# UEFI needs EFI firmware and an EFI partition mounted at /boot/efi.
+# PRISMOS_FORCE_UEFI=1/0: only for scripts/install-test.sh, which runs in a container.
+{ [ -d /sys/firmware/efi ] || [ "${PRISMOS_FORCE_UEFI:-}" = 1 ]; } && mountpoint -q /boot/efi && uefi=yes
+[ "${PRISMOS_FORCE_UEFI:-}" = 0 ] && uefi=no
 encrypted=no
 [[ $root_dev == /dev/mapper/* ]] && encrypted=yes
 log "Dateisystem $fstype, UEFI $uefi, verschlüsselt $encrypted"

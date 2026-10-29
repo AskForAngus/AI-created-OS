@@ -19,7 +19,7 @@ log() { printf '\n\033[1;35m==> %s\033[0m\n' "$*"; }
 [[ -f /etc/arch-release ]] || { echo "Muss unter Arch Linux laufen." >&2; exit 1; }
 
 log "Build-Werkzeuge installieren"
-pacman -Syu --noconfirm --needed archiso base-devel git sudo
+pacman -Syu --noconfirm --needed archiso base-devel git sudo pacman-contrib
 
 log "Profil prüfen"
 # Every executable in airootfs needs an entry in file_permissions (mkarchiso drops file modes).
@@ -165,9 +165,9 @@ pacman --root "$WORK/iso/x86_64/airootfs" --dbpath "$WORK/iso/x86_64/airootfs/va
         split($2, a, " "); s=a[1]; u=a[2]
         if (u ~ /KiB/) s/=1024; else if (u ~ /GiB/) s*=1024; else if (u ~ /B$/ && u !~ /MiB/) s/=1048576
         printf "%8.1f MiB  %s\n", s, n }' | sort -rn | head -40 || true
-for big in qt6-webengine llvm-libs perl boost-libs gtk3; do
-    pacman --root "$WORK/iso/x86_64/airootfs" --dbpath "$WORK/iso/x86_64/airootfs/var/lib/pacman" -Qi "$big" 2>/dev/null |
-        sed -n "s/^Required By *: */$big wird gebraucht von: /p"
+for big in qt6-webengine gtk3; do
+    echo "== Wer braucht $big? =="
+    pactree -r -d 6 -b "$WORK/iso/x86_64/airootfs/var/lib/pacman" "$big" 2>/dev/null || true
 done
 
 cd "$OUT"

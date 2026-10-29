@@ -146,11 +146,13 @@ if [[ $MODE == bios ]]; then
     in_target grub-mkconfig -o /boot/grub/grub.cfg
     grep -E "^menuentry|^submenu" "$TARGET/boot/grub/grub.cfg"
     grep -q "linux-lts" "$TARGET/boot/grub/grub.cfg" || { echo "LTS-Kernel fehlt im Bootmenü" >&2; exit 1; }
-    in_target /usr/local/lib/prismos-live/prism-target-finalize
+    in_target env PRISMOS_FORCE_UEFI=0 /usr/local/lib/prismos-live/prism-target-finalize
+    ! in_target pacman -Q snapper shim-signed 2>/dev/null || { echo "Snapshot-/Secure-Boot-Pakete auf ext4/BIOS übrig" >&2; exit 1; }
 else
     # serial console so the boot test can see the passphrase prompt
     sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="console=tty0 console=ttyS0,115200 /' \
         "$TARGET/etc/default/grub"
+    echo 'GRUB_ENABLE_CRYPTODISK=y' >> "$TARGET/etc/default/grub"  # what Calamares' grubcfg does for encryption
     in_target grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=PrismOS --no-nvram
     in_target grub-mkconfig -o /boot/grub/grub.cfg
     log "prism-target-finalize (Snapshots, Verschlüsselung, Secure Boot)"
