@@ -173,6 +173,9 @@ done
 cd "$OUT"
 for iso in prismos-*.iso; do
     sha256sum "$iso" > "$iso.sha256"
+    size=$(stat -c %s "$iso")
+    echo "ISO-Größe: $size Bytes ($((size / 1048576)) MiB), Grenze für GitHub-Releases: 2147483648 Bytes"
+    (( size < 2147483648 )) || echo "Hinweis: ISO ist größer als 2 GiB und wird im Release geteilt." >&2
 done
 ls -lh "$OUT"
 log "Fertig: $OUT"

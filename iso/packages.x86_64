@@ -96,9 +96,8 @@ inter-font
 prismos-settings
 prismos-looks
 
-# --- Software & Flatpak
-discover
-packagekit-qt6
+# --- Software & Flatpak (Discover und Spectacle bringen einen Browser-Kern mit
+#     und werden deshalb erst bei der Installation geladen, siehe prismapps)
 flatpak
 
 # --- Unverzichtbare Programme
@@ -107,7 +106,6 @@ kio-extras
 konsole
 kate
 ark
-spectacle
 
 # --- Nur für das Live-Medium (werden bei der Installation entfernt)
 calamares

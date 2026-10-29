@@ -83,6 +83,9 @@ if [ "$encrypted" = yes ]; then
         install -Dm644 /dev/null /etc/prismos/esp-boot
         /usr/lib/prismos/prism-esp-sync
         chmod -x /etc/grub.d/10_linux
+        # GRUB itself never touches the encrypted disk now; without this it
+        # would still try to unlock it to load fonts and themes.
+        sed -i 's/^GRUB_ENABLE_CRYPTODISK=.*/GRUB_ENABLE_CRYPTODISK=n/' /etc/default/grub
     fi
 fi
 
@@ -140,7 +143,12 @@ if [ "$uefi" = yes ]; then
             log "keine EFI-Variablen erreichbar, Start über den Fallback-Pfad"
         fi
         # Ask the firmware to enrol the key at the next start (password = root password).
-        mokutil --import "$keys/MOK.cer" --root-pw || log "MOK-Anmeldung nicht möglich (Secure Boot aus?)"
+        if ! mokutil --import "$keys/MOK.cer" --root-pw 2>/dev/null; then
+            # no root password: one-time password "prismos" for the blue enrolment screen
+            mokutil --generate-hash=prismos > "$keys/mok-password.hash" 2>/dev/null &&
+                mokutil --import "$keys/MOK.cer" --hash-file "$keys/mok-password.hash" ||
+                log "MOK-Anmeldung nicht möglich (keine EFI-Variablen?)"
+        fi
     else
         log "grub-install fehlgeschlagen"
         rc=1

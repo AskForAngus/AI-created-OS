@@ -246,9 +246,11 @@ def run():
 
     gpu_pkgs, gpu_services, drop_kms = gpu_plan()
     vm_pkgs, vm_services = vm_plan()
-    # The LTS fallback kernel is not on the ISO (keeps it below 2 GB); it is
-    # downloaded here, or after the first boot when installing offline.
-    pacman = list(dict.fromkeys(["linux-lts"] + pacman + gpu_pkgs + vm_pkgs))
+    # Part of every installation but not on the ISO (keeps it below 2 GB): the
+    # LTS fallback kernel, and Discover/Spectacle which pull in a web engine.
+    # Downloaded here, or after the first boot when installing offline.
+    base = ["linux-lts", "discover", "packagekit-qt6", "flatpak-kcm", "spectacle"]
+    pacman = list(dict.fromkeys(base + pacman + gpu_pkgs + vm_pkgs))
 
     plan = {
         "refresh_mirrors": True,

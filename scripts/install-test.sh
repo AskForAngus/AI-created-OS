@@ -116,8 +116,8 @@ if [[ $MODE == bios ]]; then
     PLAN_PKGS='["linux-lts", "firefox"]'
     CHECK_PKGS="linux-lts firefox firefox-i18n-de"
 else
-    PLAN_PKGS='["linux-lts"]'
-    CHECK_PKGS="linux-lts"
+    PLAN_PKGS='["linux-lts", "discover", "packagekit-qt6", "spectacle"]'
+    CHECK_PKGS="linux-lts discover spectacle"
 fi
 cat > "$TARGET/var/lib/prismos/plan.json" <<PLAN
 {"refresh_mirrors": true, "pacman": $PLAN_PKGS, "pacman_optional": ["firefox-i18n-de", "gibt-es-nicht"],
