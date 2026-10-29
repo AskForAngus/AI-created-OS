@@ -11,6 +11,7 @@ Which parts are used is set in ~/.config/prism-gaming.json (tab "Gaming" in
 Prism Einstellungen): performance, quiet, display.
 """
 
+import fcntl
 import json
 import os
 import signal
@@ -21,6 +22,7 @@ from pathlib import Path
 
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "prism-gaming.json"
 STATE = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "prism-gaming.json"
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR") or "/tmp")
 HELPER = "/usr/lib/prismos/prism-gaming-helper"
 DEFAULTS = {"performance": True, "quiet": True, "display": True}
 # Effects that cost GPU time and are paused while gaming
@@ -55,19 +57,36 @@ def load_state():
         return None
 
 
+def boot_id():
+    try:
+        return Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+    except OSError:
+        return ""
+
+
+def hold_alive(state):
+    """True if the --hold process of this state still runs (and is really ours,
+    not another program that got the same process number after a restart)."""
+    pid = state.get("hold_pid")
+    if not pid or state.get("boot") != boot_id():
+        return False
+    try:
+        cmdline = Path(f"/proc/{int(pid)}/cmdline").read_bytes().split(b"\0")
+    except (OSError, ValueError):
+        return False
+    return b"--hold" in cmdline and any(arg.endswith(b"prism_gaming.py") for arg in cmdline)
+
+
 def is_on():
-    """On while the state file exists. After a restart the helper process is
-    gone: then the old state is undone so nothing stays changed."""
+    """On while the state file exists. After a restart (or if the helper process
+    died) the old state is undone, so nothing stays changed by accident."""
     state = load_state()
     if not state:
         return False
-    pid = state.get("hold_pid")
-    if pid:
-        try:
-            os.kill(int(pid), 0)
-        except (OSError, ValueError):
-            turn_off(quiet=True)
-            return False
+    stale = state.get("boot") != boot_id() or (state.get("hold_pid") and not hold_alive(state))
+    if stale:
+        turn_off(quiet=True)
+        return False
     return True
 
 
@@ -140,7 +159,7 @@ def turn_on():
         return
     STATE.parent.mkdir(parents=True, exist_ok=True)
     cfg = load_config()
-    state = {"since": time.time()}
+    state = {"since": time.time(), "boot": boot_id()}
     if cfg["performance"]:
         state["profile"] = run(["powerprofilesctl", "get"]).stdout.strip() or "balanced"
         run(["powerprofilesctl", "set", "performance"])
@@ -186,7 +205,7 @@ def turn_off(quiet=False):
         if state.get("discover_notifier") and Path("/usr/lib/DiscoverNotifier").exists():
             subprocess.Popen(["/usr/lib/DiscoverNotifier"], start_new_session=True,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if state.get("hold_pid"):
+    if hold_alive(state):
         try:
             os.kill(int(state["hold_pid"]), signal.SIGTERM)
         except (OSError, ValueError):
@@ -202,8 +221,23 @@ def turn_off(quiet=False):
         notify("Gaming-Modus aus", "Alle Einstellungen sind wiederhergestellt.")
 
 
+def single_instance():
+    """A second click while switching is still running is ignored."""
+    RUNTIME.mkdir(parents=True, exist_ok=True)
+    lock = open(RUNTIME / "prism-gaming.lock", "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return None
+    return lock
+
+
 def main(argv):
     cmd = argv[0] if argv else "toggle"
+    if cmd in ("on", "off", "toggle"):
+        lock = single_instance()
+        if lock is None:
+            return 0
     if cmd == "--hold":
         hold()
     elif cmd == "on":

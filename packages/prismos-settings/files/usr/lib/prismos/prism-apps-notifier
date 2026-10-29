@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 PLAN = Path("/var/lib/prismos/plan.json")
+FAILED = PLAN.with_suffix(".failed.json")
 FLATPAK_APPS = Path("/var/lib/flatpak/exports/share/applications")
 POLL_SECONDS = 15
 GIVE_UP_AFTER = 4 * 3600
@@ -27,10 +28,13 @@ def notify(title, body):
 
 
 def pending():
+    """Programs still to install; None when the plan is gone (all done or given up)."""
     try:
         plan = json.loads(PLAN.read_text())
-    except (OSError, ValueError):
+    except FileNotFoundError:
         return None
+    except (OSError, ValueError):
+        return False  # could not read it right now, try again later
     return plan.get("pacman", []) + plan.get("flatpak", [])
 
 
@@ -57,12 +61,18 @@ def main():
     while time.monotonic() - started < GIVE_UP_AFTER:
         time.sleep(POLL_SECONDS)
         now = pending()
+        if now is False:
+            continue
+        if now is None and FAILED.exists():
+            notify("Nicht alle Programme konnten installiert werden",
+                   "Bitte installiere sie über Discover: " + ", ".join(display_name(i) for i in waiting))
+            return 0
         remaining = now or []
         for item in waiting:
             if item not in remaining:
                 notify(f"{display_name(item)} ist installiert", "Du findest es im Startmenü.")
         waiting = remaining
-        if now is None or not now:
+        if not remaining:
             notify("Alle Programme sind installiert", "Viel Spaß mit PrismOS!")
             return 0
     return 0

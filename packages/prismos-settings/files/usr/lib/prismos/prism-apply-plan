@@ -14,7 +14,6 @@ empty the file is removed and the timer disables itself.
 
 import argparse
 import json
-import os
 import socket
 import subprocess
 import sys
@@ -58,7 +57,9 @@ def online(host="geo.mirror.pkgbuild.com", port=443, timeout=5):
 def save(plan):
     if any(plan.get(k) for k in ("pacman", "pacman_optional", "flatpak", "services", "groups")) \
             or plan.get("refresh_mirrors"):
-        PLAN.write_text(json.dumps(plan, indent=2))
+        tmp = PLAN.with_suffix(".tmp")
+        tmp.write_text(json.dumps(plan, indent=2))
+        tmp.replace(PLAN)  # atomic: prism-apps-notifier never sees a half-written file
         return False
     PLAN.unlink(missing_ok=True)
     return True
@@ -108,6 +109,9 @@ def package_exists(name):
 
 def install_packages(plan):
     global PACMAN
+    if not plan.get("pacman") and not plan.get("pacman_optional"):
+        # nothing to install: never start an unattended full system upgrade
+        return
     ensure_keyring()
     if run([*PACMAN, "-Sy", "--noconfirm"]) != 0:
         if "[prismos]" not in Path("/etc/pacman.conf").read_text():
@@ -143,9 +147,13 @@ def install_flatpaks(plan):
     if not apps:
         return
     run(["flatpak", "remote-add", "--system", "--if-not-exists", "flathub", FLATHUB])
-    remaining = [a for a in apps if run(["flatpak", "install", "--system", "--noninteractive", "-y",
-                                         "flathub", a]) != 0]
-    plan["flatpak"] = remaining
+    failed = []
+    for app in apps:
+        if run(["flatpak", "install", "--system", "--noninteractive", "-y", "flathub", app]) != 0:
+            failed.append(app)
+        # saved after every program so the desktop notification comes right away
+        plan["flatpak"] = failed + apps[apps.index(app) + 1:]
+        save(plan)
 
 
 def enable_services(plan):

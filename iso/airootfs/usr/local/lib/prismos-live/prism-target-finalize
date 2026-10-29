@@ -100,14 +100,17 @@ if [ "$uefi" = yes ]; then
             -subj "/CN=PrismOS Machine Owner Key ($(cat /etc/hostname))/" -out "$keys/MOK.crt" 2>/dev/null
         openssl x509 -outform DER -in "$keys/MOK.crt" -out "$keys/MOK.cer"
     fi
-    sbat=/usr/share/grub/sbat.csv
-    if [ ! -f "$sbat" ]; then
-        grubver=$(pacman -Q grub | awk '{ print $2 }' | cut -d- -f1 | cut -d: -f2)
-        sbat=$keys/sbat.csv
+    # SBAT: shim refuses GRUB builds whose generation is revoked. Arch's sbat.csv can lag
+    # behind the generation GRUB was built with; grub-install warns then and we use the higher one.
+    grubver=$(pacman -Q grub | awk '{ print $2 }' | cut -d- -f1 | cut -d: -f2)
+    level=$(awk -F, '$1 == "grub" { print $2 }' /usr/share/grub/sbat.csv 2>/dev/null)
+    sbat=$keys/sbat.csv
+    write_sbat() {
         printf '%s\n' "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md" \
-            "grub,4,Free Software Foundation,grub,$grubver,https://www.gnu.org/software/grub/" \
+            "grub,$1,Free Software Foundation,grub,$grubver,https://www.gnu.org/software/grub/" \
             "grub.prismos,1,PrismOS,grub,$grubver,https://github.com/AskForAngus/AI-created-OS" > "$sbat"
-    fi
+    }
+    write_sbat "${level:-4}"
     bootdir=/boot
     [ -e /etc/prismos/esp-boot ] && bootdir=/boot/efi
     # With Secure Boot GRUB may not load modules from disk, so all are built in.
@@ -116,8 +119,23 @@ if [ "$uefi" = yes ]; then
         lsefi lsefimmap lsefisystab memdisk minicmd normal ntfs part_apple part_msdos part_gpt password_pbkdf2
         png probe reboot regexp search search_fs_uuid search_fs_file search_label sleep smbios squash4 test
         true video xfs zstd"
-    if grub-install --target=x86_64-efi --efi-directory=/boot/efi --boot-directory="$bootdir" \
-            --bootloader-id=PrismOS --no-nvram --modules="$(echo $modules)" --sbat "$sbat"; then
+    install_grub() {
+        grub-install --target=x86_64-efi --efi-directory=/boot/efi --boot-directory="$bootdir" \
+            --bootloader-id=PrismOS --no-nvram --modules="$(echo $modules)" --sbat "$sbat" 2>"$keys/grub-install.log"
+        local status=$?
+        cat "$keys/grub-install.log" >&2
+        return $status
+    }
+    grub_ok=no
+    install_grub && grub_ok=yes
+    built=$(sed -n 's/.*build-time Global SBAT level \([0-9][0-9]*\).*/\1/p' "$keys/grub-install.log" | head -1)
+    if [ -n "$built" ] && [ "$built" -gt "${level:-4}" ]; then
+        log "SBAT-Stufe von GRUB: $built"
+        write_sbat "$built"
+        grub_ok=no
+        install_grub && grub_ok=yes
+    fi
+    if [ "$grub_ok" = yes ]; then
         [ "$bootdir" = /boot/efi ] && rm -rf /boot/grub
         grub-mkconfig -o "$bootdir/grub/grub.cfg" || rc=1
         efi=/boot/efi/EFI

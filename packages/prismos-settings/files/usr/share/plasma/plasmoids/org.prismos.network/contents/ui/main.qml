@@ -109,11 +109,12 @@ PlasmoidItem {
         }
 
         PlasmaComponents.ScrollView {
+            id: scroll
             anchors.fill: parent
             contentWidth: availableWidth
 
             ColumnLayout {
-                width: parent.width
+                width: scroll.availableWidth
                 spacing: Kirigami.Units.largeSpacing
 
                 PlasmaComponents.Label {

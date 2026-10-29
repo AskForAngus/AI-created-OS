@@ -14,7 +14,6 @@ Requires: python3, cairosvg, Pillow. Run from anywhere:  python3 tools/generate.
 The generated files are committed, so the ISO build does not need to run this.
 """
 
-import base64
 import io
 import json
 import math
