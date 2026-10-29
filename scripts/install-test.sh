@@ -183,7 +183,7 @@ for p in org.prismos.gamemode org.prismos.network; do
 done
 grep -q "org.prismos.network" "$TARGET/usr/share/plasma/look-and-feel/$LOOK/contents/layouts/org.kde.plasma.desktop-layout.js"
 in_target runuser -u nobody -- env HOME=/tmp prism-gaming status
-in_target prism-netinfo | python3 -c "import json, sys; d = json.load(sys.stdin); assert d['kind'] == 'overview', d; print(d)"
+in_target sh -c "prism-netinfo | python3 -c \"import json, sys; d = json.load(sys.stdin); assert d['kind'] == 'overview', d; print(d)\""
 in_target runuser -u nobody -- env HOME=/tmp prism-looks --list >/dev/null
 grep -q "Meta+Shift+L" "$TARGET/etc/xdg/kglobalshortcutsrc"
 
