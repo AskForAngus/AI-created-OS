@@ -70,6 +70,11 @@ if [[ -n ${PRISMOS_SIGNING_KEY:-} ]]; then
     mkdir -p "$kr"
     gpg --batch --export "$FPR" > "$kr/prismos.gpg"
     echo "$FPR:4:" > "$kr/prismos-trusted"
+    # mkarchiso verifies the signed packages against this container's keyring;
+    # the Arch container image has no local master key to vouch for it, so create one
+    pacman-key --init
+    pacman-key --add "$kr/prismos.gpg"
+    pacman-key --lsign-key "$FPR"
     : > "$kr/prismos-revoked"
     cat > "$kr/PKGBUILD" <<'PKG'
 pkgname=prismos-keyring

@@ -44,7 +44,9 @@ jobs:
           version="$(date +%Y.%m.%d)"
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then version="${GITHUB_REF#refs/tags/v}"; fi
           set -o pipefail
-          sudo docker run --rm --privileged \
+          if [[ -n $PRISMOS_SIGNING_KEY ]]; then echo "Signierschlüssel: vorhanden"; else echo "Signierschlüssel: keiner"; fi
+          # sudo drops the environment; the key must be handed through explicitly
+          sudo --preserve-env=PRISMOS_SIGNING_KEY docker run --rm --privileged \
             -v "$GITHUB_WORKSPACE:/src:ro" \
             -v /mnt/prismos/work:/work \
             -v /mnt/prismos/out:/out \
@@ -56,8 +58,13 @@ jobs:
             bash /src/scripts/build-iso.sh /out 2>&1 | sudo tee /mnt/prismos/build.log
 
       - name: Ergebnis anzeigen
+        env:
+          HAVE_KEY: ${{ secrets.PRISMOS_SIGNING_KEY != '' }}
         run: |
           ls -lh /mnt/prismos/out
+          if [ "$HAVE_KEY" = true ]; then
+            ls -l /mnt/prismos/out/repo || { echo "::error::Signierschlüssel gesetzt, aber keine signierte Paketquelle gebaut."; exit 1; }
+          fi
           cat /mnt/prismos/out/*.sha256
           echo "== Warnungen und Hinweise aus dem Build =="
           grep -aE -i "(^|[^a-z])(warning|error|fehler|hinweis|failed)[: ]" /mnt/prismos/build.log \
@@ -118,9 +125,14 @@ jobs:
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+          HAVE_KEY: ${{ secrets.PRISMOS_SIGNING_KEY != '' }}
         run: |
           dir=/mnt/prismos/out/repo
           if [ ! -d "$dir" ]; then
+            if [ "$HAVE_KEY" = true ]; then
+              echo "::error::Signierschlüssel ist gesetzt, aber der Build hat keine Paketquelle erzeugt."
+              exit 1
+            fi
             echo "::notice::Kein Signierschlüssel (Secret PRISMOS_SIGNING_KEY) – Paketquelle wird nicht veröffentlicht."
             exit 0
           fi
