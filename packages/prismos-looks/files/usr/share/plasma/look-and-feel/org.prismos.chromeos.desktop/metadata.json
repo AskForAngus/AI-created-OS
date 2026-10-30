@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "PrismOS"
+            }
+        ],
+        "Category": "",
+        "Description": "Schwebende Leiste mit App-Starter links und zentrierten Apps.",
+        "Id": "org.prismos.chromeos.desktop",
+        "License": "GPL-2.0-or-later",
+        "Name": "ChromeOS-Stil",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-APIVersion": "2"
+}

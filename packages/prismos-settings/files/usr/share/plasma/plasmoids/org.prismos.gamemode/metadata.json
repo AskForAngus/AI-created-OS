@@ -1,0 +1,17 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [{ "Name": "PrismOS" }],
+        "Category": "System Information",
+        "Description": "One click for the best gaming settings",
+        "Description[de]": "Ein Klick für die besten Gaming-Einstellungen",
+        "Icon": "input-gaming",
+        "Id": "org.prismos.gamemode",
+        "License": "GPL-2.0-or-later",
+        "Name": "Gaming mode",
+        "Name[de]": "Gaming-Modus",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

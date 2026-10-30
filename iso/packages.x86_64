@@ -1,0 +1,118 @@
+# PrismOS – Pakete des Live-Systems (und damit der Grundinstallation).
+# Bewusst schlank: nur was ein Desktop wirklich braucht. Alles Weitere
+# wählst du im Installer aus.
+
+# --- Basis & Kernel (Zen für flüssigen Desktop; der LTS-Notfall-Kernel wird
+#     bei der Installation geladen, das hält die ISO unter 2 GB)
+base
+linux-zen
+linux-firmware
+sof-firmware
+alsa-ucm-conf
+intel-ucode
+amd-ucode
+mkinitcpio
+sudo
+nano
+bash-completion
+pacman-contrib
+reflector
+python
+pciutils
+usbutils
+
+# --- Bootloader & Dateisysteme
+grub
+efibootmgr
+os-prober
+btrfs-progs
+dosfstools
+e2fsprogs
+exfatprogs
+f2fs-tools
+ntfs-3g
+xfsprogs
+
+# --- Snapshots, Verschlüsselung, Secure Boot
+snapper
+snap-pac
+tpm2-tss
+shim-signed
+mokutil
+sbsigntools
+
+# --- Akku & Leistung
+power-profiles-daemon
+switcheroo-control
+thermald
+zram-generator
+
+# --- Netzwerk & Bluetooth
+networkmanager
+bluez
+bluez-utils
+
+# --- Audio
+pipewire
+pipewire-alsa
+pipewire-jack
+pipewire-pulse
+wireplumber
+
+# --- Grafik (offene Treiber für Intel, AMD, NVIDIA/nouveau, VMs)
+mesa
+vulkan-intel
+vulkan-radeon
+vulkan-nouveau
+intel-media-driver
+xorg-server
+
+# --- KDE Plasma (minimal, ohne die "plasma"-Sammlung)
+plasma-desktop
+plasma-nm
+plasma-pa
+powerdevil
+bluedevil
+kscreen
+kinfocenter
+plasma-systemmonitor
+kde-gtk-config
+breeze-gtk
+xdg-desktop-portal-kde
+qt6-wayland
+kwallet-pam
+sddm
+sddm-kcm
+
+# --- Personalisierung
+kvantum
+python-pyqt6
+noto-fonts
+noto-fonts-emoji
+ttf-liberation
+inter-font
+
+# --- PrismOS (eigene Pakete, siehe packages/)
+prismos-settings
+prismos-looks
+
+# --- Software & Flatpak (Discover und Spectacle bringen einen Browser-Kern mit
+#     und werden deshalb erst bei der Installation geladen, siehe prismapps)
+flatpak
+
+# --- Unverzichtbare Programme
+dolphin
+kio-extras
+konsole
+kate
+ark
+
+# --- Nur für das Live-Medium (werden bei der Installation entfernt)
+calamares
+mkinitcpio-archiso
+syslinux
+memtest86+
+memtest86+-efi
+arch-install-scripts
+rsync
+squashfs-tools

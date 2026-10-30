@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PrismOS – Programme im Hintergrund
+Comment=Meldet, wenn die bei der Installation gewählten Programme fertig sind
+Exec=/usr/lib/prismos/prism-apps-notifier
+Icon=prismos
+NoDisplay=true
+X-KDE-autostart-phase=2

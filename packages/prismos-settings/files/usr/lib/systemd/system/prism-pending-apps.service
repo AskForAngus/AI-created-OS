@@ -1,0 +1,13 @@
+[Unit]
+Description=PrismOS: ausgewählte Programme nachinstallieren
+ConditionPathExists=/var/lib/prismos/plan.json
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/prismos/prism-apply-plan --wait-online 120
+# Exit code 2 means "not finished yet, will retry"
+SuccessExitStatus=2
+Nice=10
+IOSchedulingClass=idle

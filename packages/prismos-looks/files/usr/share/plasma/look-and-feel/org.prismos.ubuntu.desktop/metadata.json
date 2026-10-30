@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "PrismOS"
+            }
+        ],
+        "Category": "",
+        "Description": "Dock am linken Rand, Uhr oben in der Mitte, warmer orangefarbener Akzent.",
+        "Id": "org.prismos.ubuntu.desktop",
+        "License": "GPL-2.0-or-later",
+        "Name": "Ubuntu-Stil",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-APIVersion": "2"
+}

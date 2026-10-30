@@ -1,0 +1,46 @@
+---
+componentName:  prismos
+
+welcomeStyleCalamares:   false
+welcomeExpandingLogo:   true
+windowExpanding:    normal
+windowSize: 1080px,700px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+
+strings:
+    productName:         PrismOS
+    shortProductName:    PrismOS
+    version:             "@VERSION@"
+    shortVersion:        "@VERSION@"
+    versionedName:       "PrismOS @VERSION@"
+    shortVersionedName:  "PrismOS @VERSION@"
+    bootloaderEntryName: PrismOS
+    productUrl:          https://github.com/AskForAngus/AI-created-OS
+    supportUrl:          https://github.com/AskForAngus/AI-created-OS/issues
+    knownIssuesUrl:      https://github.com/AskForAngus/AI-created-OS/issues
+    releaseNotesUrl:     https://github.com/AskForAngus/AI-created-OS/releases
+    donateUrl:           ""
+
+images:
+    productLogo:         "logo.png"
+    productIcon:         "icon.png"
+    productWelcome:      "welcome.png"
+
+slideshow:
+    - "slide1.png"
+    - "slide2.png"
+    - "slide3.png"
+    - "slide4.png"
+    - "slide5.png"
+
+style:
+   SidebarBackground:        "#141233"
+   SidebarText:              "#FFFFFF"
+   SidebarTextCurrent:       "#FFFFFF"
+   SidebarBackgroundCurrent: "#7C5CFF"
+   sidebarBackground:        "#141233"
+   sidebarText:              "#FFFFFF"
+   sidebarTextSelect:        "#FFFFFF"
+   sidebarSelect:            "#7C5CFF"

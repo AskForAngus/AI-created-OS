@@ -1,0 +1,30 @@
+#!/bin/sh
+# PrismOS: boot entries for encrypted installs. Kernels and initramfs images
+# live on the EFI partition (/boot/efi/prismos), so GRUB never has to unlock
+# the disk; the initramfs does that with password, PIN (TPM) or USB stick.
+set -e
+[ -e /etc/prismos/esp-boot ] || exit 0
+esp_uuid=$(findmnt -no UUID /boot/efi)
+root_src=$(findmnt -no SOURCE /)
+root_dev=${root_src%%[*}
+flags=""
+if [ "$(findmnt -no FSTYPE /)" = btrfs ]; then
+    subvol=$(findmnt -no OPTIONS / | tr ',' '\n' | sed -n 's/^subvol=//p')
+    [ -n "$subvol" ] && flags="rootflags=subvol=$subvol"
+fi
+for kernel in linux-zen linux linux-lts; do
+    [ -f "/boot/efi/prismos/vmlinuz-$kernel" ] || continue
+    title="PrismOS"
+    [ "$kernel" = linux-lts ] && title="PrismOS (LTS-Notfallkernel)"
+    echo "Found PrismOS kernel on EFI partition: $kernel" >&2
+    cat <<EOF
+menuentry '$title' --class prismos --class gnu-linux --class os {
+	insmod part_gpt
+	insmod part_msdos
+	insmod fat
+	search --no-floppy --fs-uuid --set=root $esp_uuid
+	linux /prismos/vmlinuz-$kernel root=$root_dev rw $flags ${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT}
+	initrd /prismos/initramfs-$kernel.img
+}
+EOF
+done

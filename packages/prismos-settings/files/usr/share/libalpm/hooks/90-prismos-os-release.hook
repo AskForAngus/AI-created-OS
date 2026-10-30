@@ -1,0 +1,12 @@
+# Keep the PrismOS identity when the 'filesystem' package is installed or updated.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = filesystem
+
+[Action]
+Description = Setting PrismOS system identity...
+When = PostTransaction
+Depends = sh
+Exec = /usr/lib/prismos/prism-os-release

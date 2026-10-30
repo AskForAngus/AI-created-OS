@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PrismOS installieren
+Comment=PrismOS auf diesem Computer installieren
+Exec=/usr/local/bin/prism-installer
+Icon=prismos-installer
+Terminal=false
+Categories=Qt;System;

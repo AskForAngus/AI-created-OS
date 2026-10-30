@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "PrismOS"
+            }
+        ],
+        "Category": "",
+        "Description": "Maximal Platz: kleines Dock, das sich automatisch ausblendet. Ruhige Grautöne.",
+        "Id": "org.prismos.minimal.desktop",
+        "License": "GPL-2.0-or-later",
+        "Name": "Minimal",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-APIVersion": "2"
+}

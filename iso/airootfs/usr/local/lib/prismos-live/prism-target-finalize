@@ -1,0 +1,184 @@
+#!/bin/bash
+# Last installation step, run inside the target after Calamares installed GRUB
+# (shellprocess@prism-finalize):
+#   1. Btrfs: snapper with a separate @snapshots subvolume, first snapshot
+#   2. Encryption: unlock in the initramfs; on UEFI kernels go to the EFI
+#      partition so password, PIN (TPM) or USB stick can unlock the disk
+#   3. UEFI: shim + GRUB signed with a Machine Owner Key (Secure Boot)
+set -uo pipefail
+
+log() { echo "[prism-finalize] $*"; }
+rc=0
+
+root_src=$(findmnt -no SOURCE /)
+root_dev=${root_src%%[*}
+fstype=$(findmnt -no FSTYPE /)
+uefi=no
+# UEFI needs EFI firmware and an EFI partition mounted at /boot/efi.
+# PRISMOS_FORCE_UEFI=1/0: only for scripts/install-test.sh, which runs in a container.
+{ [ -d /sys/firmware/efi ] || [ "${PRISMOS_FORCE_UEFI:-}" = 1 ]; } && mountpoint -q /boot/efi && uefi=yes
+[ "${PRISMOS_FORCE_UEFI:-}" = 0 ] && uefi=no
+encrypted=no
+[[ $root_dev == /dev/mapper/* ]] && encrypted=yes
+log "Dateisystem $fstype, UEFI $uefi, verschlüsselt $encrypted"
+
+# --------------------------------------------------------------- 1. snapshots
+if [ "$fstype" = btrfs ] && command -v snapper >/dev/null; then
+    log "Snapshots einrichten"
+    top=/run/prismos-top
+    mkdir -p "$top"
+    mount -o subvolid=5 "$root_dev" "$top"
+    [ -d "$top/@snapshots" ] || btrfs subvolume create "$top/@snapshots"
+    umount "$top"
+    if ! grep -qE '[[:space:]]/\.snapshots[[:space:]]' /etc/fstab; then
+        uuid=$(findmnt -no UUID /)
+        opts=$(awk '$2 == "/" { print $4 }' /etc/fstab | sed -e 's#subvolid=[0-9]*,\?##' \
+            -e 's#subvol=/\?@\([,]\|$\)#subvol=/@snapshots\1#')
+        [[ $opts == *subvol=* ]] || opts="$opts,subvol=/@snapshots"
+        echo "UUID=$uuid /.snapshots btrfs $opts 0 0" >> /etc/fstab
+    fi
+    mkdir -p /.snapshots
+    mountpoint -q /.snapshots || mount /.snapshots
+    install -Dm640 /usr/share/snapper/config-templates/default /etc/snapper/configs/root
+    sed -i -e 's/^SUBVOLUME=.*/SUBVOLUME="\/"/' \
+           -e 's/^FSTYPE=.*/FSTYPE="btrfs"/' \
+           -e 's/^ALLOW_GROUPS=.*/ALLOW_GROUPS="wheel"/' \
+           -e 's/^SYNC_ACL=.*/SYNC_ACL="yes"/' \
+           -e 's/^TIMELINE_CREATE=.*/TIMELINE_CREATE="no"/' \
+           -e 's/^NUMBER_LIMIT=.*/NUMBER_LIMIT="10"/' \
+           -e 's/^NUMBER_LIMIT_IMPORTANT=.*/NUMBER_LIMIT_IMPORTANT="5"/' /etc/snapper/configs/root
+    if [ -f /etc/conf.d/snapper ]; then
+        sed -i 's/^SNAPPER_CONFIGS=.*/SNAPPER_CONFIGS="root"/' /etc/conf.d/snapper
+    else
+        install -Dm644 /dev/stdin /etc/conf.d/snapper <<<'SNAPPER_CONFIGS="root"'
+    fi
+    chmod 750 /.snapshots
+    systemctl enable snapper-cleanup.timer
+    snapper --no-dbus -c root create --userdata important=yes -d "Frisch installiert" || log "erster Snapshot fehlgeschlagen"
+else
+    # ext4/xfs: no snapshots, so no snapshot tools either
+    for pkg in snap-pac snapper; do
+        pacman -Q "$pkg" &>/dev/null && pacman -Rns --noconfirm "$pkg" >/dev/null
+    done
+fi
+
+# --------------------------------------------------------------- 2. encryption
+if [ "$encrypted" = yes ]; then
+    log "Verschlüsselung: Entsperren im Initramfs"
+    name=${root_dev#/dev/mapper/}
+    part=$(cryptsetup status "$name" | awk '/device:/ { print $2 }')
+    uuid=$(blkid -s UUID -o value "$part")
+    install -Dm600 /dev/stdin /etc/crypttab.initramfs <<<"$name UUID=$uuid none discard"
+    if grep -qE '^HOOKS=.*\bsystemd\b' /etc/mkinitcpio.conf; then
+        grep -qE '^HOOKS=.*\bsd-encrypt\b' /etc/mkinitcpio.conf ||
+            sed -i -E '/^HOOKS=/ s/\bblock\b/block sd-encrypt/' /etc/mkinitcpio.conf
+    else
+        grep -qE '^HOOKS=.*\bencrypt\b' /etc/mkinitcpio.conf ||
+            sed -i -E '/^HOOKS=/ s/\bblock\b/block encrypt/' /etc/mkinitcpio.conf
+    fi
+    # USB sticks with a key file can be FAT, exFAT or ext4
+    install -Dm644 /dev/stdin /etc/mkinitcpio.conf.d/prismos-crypt.conf <<<'MODULES+=(vfat exfat nls_cp437 nls_iso8859_1 usb_storage uas)'
+    mkinitcpio -P || { log "mkinitcpio fehlgeschlagen"; rc=1; }
+    if [ "$uefi" = yes ]; then
+        install -Dm644 /dev/null /etc/prismos/esp-boot
+        /usr/lib/prismos/prism-esp-sync
+        chmod -x /etc/grub.d/10_linux
+        # GRUB itself never touches the encrypted disk now; without this it
+        # would still try to unlock it to load fonts and themes.
+        sed -i 's/^GRUB_ENABLE_CRYPTODISK=.*/GRUB_ENABLE_CRYPTODISK=n/' /etc/default/grub
+    fi
+fi
+
+# --------------------------------------------------------------- 3. Secure Boot (UEFI)
+if [ "$uefi" = yes ]; then
+    log "Secure Boot: shim und signierter Bootloader"
+    keys=/etc/prismos/secureboot
+    mkdir -p "$keys"
+    chmod 700 "$keys"
+    if [ ! -f "$keys/MOK.key" ]; then
+        openssl req -newkey rsa:2048 -nodes -keyout "$keys/MOK.key" -new -x509 -sha256 -days 36500 \
+            -subj "/CN=PrismOS Machine Owner Key ($(cat /etc/hostname))/" -out "$keys/MOK.crt" 2>/dev/null
+        openssl x509 -outform DER -in "$keys/MOK.crt" -out "$keys/MOK.cer"
+    fi
+    # SBAT: shim refuses GRUB builds whose generation is revoked. Arch's sbat.csv can lag
+    # behind the generation GRUB was built with; grub-install warns then and we use the higher one.
+    grubver=$(pacman -Q grub | awk '{ print $2 }' | cut -d- -f1 | cut -d: -f2)
+    level=$(awk -F, '$1 == "grub" { print $2 }' /usr/share/grub/sbat.csv 2>/dev/null)
+    sbat=$keys/sbat.csv
+    write_sbat() {
+        printf '%s\n' "sbat,1,SBAT Version,sbat,1,https://github.com/rhboot/shim/blob/main/SBAT.md" \
+            "grub,$1,Free Software Foundation,grub,$grubver,https://www.gnu.org/software/grub/" \
+            "grub.prismos,1,PrismOS,grub,$grubver,https://github.com/AskForAngus/AI-created-OS" > "$sbat"
+    }
+    write_sbat "${level:-4}"
+    bootdir=/boot
+    [ -e /etc/prismos/esp-boot ] && bootdir=/boot/efi
+    # With Secure Boot GRUB may not load modules from disk, so all are built in.
+    modules="all_video boot btrfs cat chain configfile echo efifwsetup efinet ext2 exfat fat font gettext
+        gfxmenu gfxterm gfxterm_background gzio halt help iso9660 jpeg keystatus loadenv loopback linux ls
+        lsefi lsefimmap lsefisystab memdisk minicmd normal ntfs part_apple part_msdos part_gpt password_pbkdf2
+        png probe reboot regexp search search_fs_uuid search_fs_file search_label sleep smbios squash4 test
+        true video xfs zstd"
+    install_grub() {
+        grub-install --target=x86_64-efi --efi-directory=/boot/efi --boot-directory="$bootdir" \
+            --bootloader-id=PrismOS --no-nvram --modules="$(echo $modules)" --sbat "$sbat" 2>"$keys/grub-install.log"
+        local status=$?
+        cat "$keys/grub-install.log" >&2
+        return $status
+    }
+    grub_ok=no
+    install_grub && grub_ok=yes
+    built=$(sed -n 's/.*build-time Global SBAT level \([0-9][0-9]*\).*/\1/p' "$keys/grub-install.log" | head -1)
+    if [ -n "$built" ] && [ "$built" -gt "${level:-4}" ]; then
+        log "SBAT-Stufe von GRUB: $built"
+        write_sbat "$built"
+        grub_ok=no
+        install_grub && grub_ok=yes
+    fi
+    if [ "$grub_ok" = yes ]; then
+        [ "$bootdir" = /boot/efi ] && rm -rf /boot/grub
+        grub-mkconfig -o "$bootdir/grub/grub.cfg" || rc=1
+        efi=/boot/efi/EFI
+        sbsign --key "$keys/MOK.key" --cert "$keys/MOK.crt" --output "$efi/PrismOS/grubx64.efi" "$efi/PrismOS/grubx64.efi"
+        install -m644 /usr/share/shim-signed/shimx64.efi /usr/share/shim-signed/mmx64.efi "$efi/PrismOS/"
+        # Fallback path for firmware that ignores boot entries
+        mkdir -p "$efi/BOOT"
+        install -m644 /usr/share/shim-signed/shimx64.efi "$efi/BOOT/BOOTX64.EFI"
+        install -m644 /usr/share/shim-signed/mmx64.efi "$efi/PrismOS/grubx64.efi" "$efi/BOOT/"
+        /usr/lib/prismos/prism-secureboot sign-kernels
+        /usr/lib/prismos/prism-esp-sync
+        # Boot entry: firmware → shim → GRUB
+        esp_part=$(findmnt -no SOURCE /boot/efi)
+        esp_disk=/dev/$(lsblk -no PKNAME "$esp_part" | head -1)
+        esp_num=$(cat "/sys/class/block/$(basename "$esp_part")/partition" 2>/dev/null)
+        if [ -n "$esp_num" ] && efibootmgr >/dev/null 2>&1; then
+            for entry in $(efibootmgr | sed -n 's/^Boot\([0-9A-F]\{4\}\)\*\? PrismOS.*/\1/p'); do
+                efibootmgr -q -b "$entry" -B
+            done
+            efibootmgr -q --create --disk "$esp_disk" --part "$esp_num" --label PrismOS \
+                --loader '\EFI\PrismOS\shimx64.efi' || log "Booteintrag konnte nicht angelegt werden"
+        else
+            log "keine EFI-Variablen erreichbar, Start über den Fallback-Pfad"
+        fi
+        # Ask the firmware to enrol the key at the next start (password = root password).
+        if ! mokutil --import "$keys/MOK.cer" --root-pw 2>/dev/null; then
+            # no root password: one-time password "prismos" for the blue enrolment screen
+            mokutil --generate-hash=prismos > "$keys/mok-password.hash" 2>/dev/null &&
+                mokutil --import "$keys/MOK.cer" --hash-file "$keys/mok-password.hash" ||
+                log "MOK-Anmeldung nicht möglich (keine EFI-Variablen?)"
+        fi
+    else
+        log "grub-install fehlgeschlagen"
+        rc=1
+    fi
+fi
+
+if [ "$uefi" = no ]; then
+    for pkg in shim-signed mokutil sbsigntools; do
+        pacman -Q "$pkg" &>/dev/null && pacman -Rns --noconfirm "$pkg" >/dev/null
+    done
+fi
+
+log "fertig"
+rm -rf /usr/local/lib/prismos-live
+exit "$rc"

@@ -1,0 +1,30 @@
+#!/bin/sh
+# Root part of the gaming mode, started through pkexec without a password
+# (polkit action org.prismos.gaming). Accepts only these fixed commands.
+case "${1:-}" in
+charge-full)
+    # tells prism-battery not to switch the power profile while gaming
+    mkdir -p /run/prismos && touch /run/prismos/gaming
+    for t in /sys/class/power_supply/BAT*/charge_control_end_threshold; do
+        [ -w "$t" ] && echo 100 > "$t"
+    done
+    ;;
+charge-restore)
+    rm -f /run/prismos/gaming
+    /usr/lib/prismos/prism-battery apply-limit
+    ;;
+maintenance-pause)
+    systemctl stop paccache.timer reflector.timer snapper-cleanup.timer fstrim.timer \
+        prism-pending-apps.timer packagekit.service 2>/dev/null
+    ;;
+maintenance-resume)
+    for unit in paccache.timer reflector.timer snapper-cleanup.timer fstrim.timer prism-pending-apps.timer; do
+        systemctl -q is-enabled "$unit" 2>/dev/null && systemctl start "$unit"
+    done
+    ;;
+*)
+    echo "Aufruf: prism-gaming-helper charge-full|charge-restore|maintenance-pause|maintenance-resume" >&2
+    exit 2
+    ;;
+esac
+exit 0

@@ -1,0 +1,10 @@
+[Unit]
+Description=PrismOS: Hell/Dunkel-Automatik regelmäßig prüfen
+
+[Timer]
+OnStartupSec=20s
+OnCalendar=*:0/10
+Persistent=true
+
+[Install]
+WantedBy=timers.target

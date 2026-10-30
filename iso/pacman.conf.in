@@ -1,0 +1,20 @@
+# pacman configuration used by mkarchiso to build PrismOS.
+# @LOCALREPO@ is replaced by scripts/build-iso.sh with the directory holding
+# the packages built for PrismOS (currently the Calamares installer).
+
+[options]
+HoldPkg     = pacman glibc
+Architecture = auto
+ParallelDownloads = 8
+SigLevel    = Required DatabaseOptional
+LocalFileSigLevel = Optional
+
+[prismos-local]
+SigLevel = Optional TrustAll
+Server = file://@LOCALREPO@
+
+[core]
+Include = /etc/pacman.d/mirrorlist
+
+[extra]
+Include = /etc/pacman.d/mirrorlist

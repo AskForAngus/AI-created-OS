@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""Install the programs and drivers chosen in the PrismOS installer.
+
+The installer writes /var/lib/prismos/plan.json. This script works through it:
+fast mirrors, pacman keyring, packages, Flatpaks, services, user groups.
+Whatever cannot be done yet (no internet, a temporary error) stays in the plan,
+and prism-pending-apps.timer runs this script again later. When the plan is
+empty the file is removed and the timer disables itself.
+
+  prism-apply-plan                 work through the plan
+  prism-apply-plan --wait-online N wait up to N seconds for internet first
+  prism-apply-plan --installer     called by the installer: skip Flatpaks for now
+"""
+
+import argparse
+import json
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+PLAN = Path("/var/lib/prismos/plan.json")
+MAX_ATTEMPTS = 50  # the timer retries every 15 minutes; give up on what never works
+FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
+FALLBACK_MIRRORS = """\
+# PrismOS fallback mirror list (reflector could not be run)
+Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch
+Server = https://mirror.f4st.host/archlinux/$repo/os/$arch
+Server = https://ftp.fau.de/archlinux/$repo/os/$arch
+Server = https://mirror.netcologne.de/archlinux/$repo/os/$arch
+Server = https://mirrors.kernel.org/archlinux/$repo/os/$arch
+"""
+
+
+def log(msg):
+    print(f"[prism-apply-plan] {msg}", flush=True)
+
+
+def run(cmd, **kw):
+    log("$ " + " ".join(cmd))
+    try:
+        return subprocess.run(cmd, **kw).returncode
+    except FileNotFoundError:
+        log(f"{cmd[0]} nicht gefunden")
+        return 127
+
+
+def online(host="geo.mirror.pkgbuild.com", port=443, timeout=5):
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def save(plan):
+    if any(plan.get(k) for k in ("pacman", "pacman_optional", "flatpak", "services", "groups")) \
+            or plan.get("refresh_mirrors"):
+        tmp = PLAN.with_suffix(".tmp")
+        tmp.write_text(json.dumps(plan, indent=2))
+        tmp.replace(PLAN)  # atomic: prism-apps-notifier never sees a half-written file
+        return False
+    PLAN.unlink(missing_ok=True)
+    return True
+
+
+def refresh_mirrors(plan):
+    mirrorlist = Path("/etc/pacman.d/mirrorlist")
+    ok = run(["reflector", "--protocol", "https", "--latest", "10", "--sort", "rate",
+              "--download-timeout", "3", "--save", str(mirrorlist)]) == 0
+    has_server = any(l.startswith("Server") for l in mirrorlist.read_text().splitlines()) \
+        if mirrorlist.exists() else False
+    if not ok or not has_server:
+        log("reflector fehlgeschlagen, nutze Ersatz-Spiegelserver")
+        mirrorlist.write_text(FALLBACK_MIRRORS)
+    plan["refresh_mirrors"] = False
+
+
+def ensure_keyring():
+    if not Path("/etc/pacman.d/gnupg/trustdb.gpg").exists():
+        run(["pacman-key", "--init"])
+        run(["pacman-key", "--populate", "archlinux"])
+    if Path("/usr/share/pacman/keyrings/prismos.gpg").exists():
+        run(["pacman-key", "--populate", "prismos"])
+
+
+PACMAN = ["pacman"]
+
+
+def without_prismos_repo():
+    """pacman configuration without the PrismOS repository, used when it cannot
+    be reached, so that a GitHub outage does not block installing programs."""
+    conf = Path("/run/prismos-pacman.conf")
+    lines, skip = [], False
+    for line in Path("/etc/pacman.conf").read_text().splitlines():
+        if line.strip().startswith("["):
+            skip = line.strip() == "[prismos]"
+        if not skip:
+            lines.append(line)
+    conf.write_text("\n".join(lines) + "\n")
+    return ["pacman", "--config", str(conf)]
+
+
+def package_exists(name):
+    return subprocess.run([*PACMAN, "-Si", name], stdout=subprocess.DEVNULL,
+                          stderr=subprocess.DEVNULL).returncode == 0
+
+
+def install_packages(plan):
+    global PACMAN
+    if not plan.get("pacman") and not plan.get("pacman_optional"):
+        # nothing to install: never start an unattended full system upgrade
+        return
+    ensure_keyring()
+    if run([*PACMAN, "-Sy", "--noconfirm"]) != 0:
+        if "[prismos]" not in Path("/etc/pacman.conf").read_text():
+            return
+        log("PrismOS-Paketquelle nicht erreichbar, weiter ohne sie")
+        PACMAN = without_prismos_repo()
+        if run([*PACMAN, "-Sy", "--noconfirm"]) != 0:
+            return
+    optional = [p for p in plan.get("pacman_optional", []) if package_exists(p)]
+    wanted = list(dict.fromkeys(plan.get("pacman", []) + optional))
+    if run([*PACMAN, "-Su", "--noconfirm", "--needed", *wanted]) == 0:
+        plan["pacman"], plan["pacman_optional"] = [], []
+    else:
+        # Something in the batch failed: try one by one so one bad name does not block the rest.
+        failed = []
+        for pkg in wanted:
+            if run([*PACMAN, "-S", "--noconfirm", "--needed", pkg]) != 0:
+                failed.append(pkg)
+        plan["pacman"] = [p for p in failed if p in plan.get("pacman", [])]
+        plan["pacman_optional"] = []
+        if failed:
+            log("nicht installiert: " + ", ".join(failed))
+    if plan.pop("drop_kms_hook", False):
+        conf = Path("/etc/mkinitcpio.conf")
+        text = conf.read_text()
+        conf.write_text("\n".join(
+            l.replace(" kms ", " ") if l.startswith("HOOKS=") else l for l in text.splitlines()) + "\n")
+        run(["mkinitcpio", "-P"])
+
+
+def install_flatpaks(plan):
+    apps = plan.get("flatpak", [])
+    if not apps:
+        return
+    run(["flatpak", "remote-add", "--system", "--if-not-exists", "flathub", FLATHUB])
+    failed = []
+    for app in apps:
+        if run(["flatpak", "install", "--system", "--noninteractive", "-y", "flathub", app]) != 0:
+            failed.append(app)
+        # saved after every program so the desktop notification comes right away
+        plan["flatpak"] = failed + apps[apps.index(app) + 1:]
+        save(plan)
+
+
+def enable_services(plan):
+    remaining = []
+    for unit in plan.get("services", []):
+        if run(["systemctl", "enable", unit]) != 0:
+            remaining.append(unit)
+    plan["services"] = remaining
+
+
+def add_groups(plan):
+    remaining = {}
+    for group, users in plan.get("groups", {}).items():
+        for user in users:
+            if run(["gpasswd", "-a", user, group]) != 0:
+                remaining.setdefault(group, []).append(user)
+    plan["groups"] = remaining
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--wait-online", type=int, default=0)
+    ap.add_argument("--installer", action="store_true",
+                    help="running inside the installer: leave Flatpaks for the first boot")
+    args = ap.parse_args()
+
+    if not PLAN.exists():
+        return 0
+    plan = json.loads(PLAN.read_text())
+    plan["attempts"] = plan.get("attempts", 0) + 1
+    if plan["attempts"] > MAX_ATTEMPTS:
+        log("gebe auf, nicht installiert: " + json.dumps(plan))
+        PLAN.rename(PLAN.with_suffix(".failed.json"))
+        run(["systemctl", "disable", "prism-pending-apps.timer"])
+        return 1
+
+    deadline = time.monotonic() + args.wait_online
+    while not online() and time.monotonic() < deadline:
+        time.sleep(5)
+
+    if online():
+        if plan.get("refresh_mirrors"):
+            refresh_mirrors(plan)
+        install_packages(plan)
+        save(plan)
+        # Flatpaks pull large runtimes; they are installed in the background
+        # after the first boot so the installer finishes quickly.
+        if not args.installer and online("dl.flathub.org"):
+            install_flatpaks(plan)
+    else:
+        log("keine Internetverbindung – Programme werden später installiert")
+
+    # Units and groups appear with their packages; what fails now is retried next time.
+    enable_services(plan)
+    add_groups(plan)
+
+    done = save(plan)
+    timer = "prism-pending-apps.timer"
+    run(["systemctl", "disable" if done else "enable", timer], stderr=subprocess.DEVNULL)
+    log("alles erledigt" if done else "Rest folgt später automatisch")
+    return 0 if done else 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

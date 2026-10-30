@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+"""Privileged helper for "Prism Einstellungen", started through pkexec.
+
+  prism-admin battery LIMIT yes|no          charge limit and automatic power profile
+  prism-admin snapshot-create DESCRIPTION
+  prism-admin snapshot-delete NUMBER
+  prism-admin snapshot-rollback NUMBER      make snapshot NUMBER the system after a restart
+  prism-admin crypt-status                  JSON: device and unlock methods
+  prism-admin crypt-add-pin                 stdin JSON {"password", "pin"}
+  prism-admin crypt-remove-pin
+  prism-admin crypt-add-usb PARTITION       stdin JSON {"password"}
+  prism-admin crypt-remove-usb              stdin JSON {"password"}
+  prism-admin crypt-change-password         stdin JSON {"password", "new"}
+
+Secrets are only ever read from stdin, never from the command line.
+"""
+
+import datetime
+import json
+import os
+import re
+import secrets
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+BATTERY_CONF = Path("/etc/prismos/battery.conf")
+CRYPT_STATE = Path("/etc/prismos/crypt.json")
+CRYPTTAB_INITRAMFS = Path("/etc/crypttab.initramfs")
+TOP = Path("/run/prismos-btrfs-top")
+
+
+class Fail(Exception):
+    pass
+
+
+def run(cmd, input_text=None, env=None, check=True):
+    proc = subprocess.run(cmd, input=input_text, text=True, capture_output=True,
+                          env={**os.environ, **(env or {})})
+    if check and proc.returncode != 0:
+        raise Fail((proc.stderr or proc.stdout).strip() or f"{cmd[0]} ist fehlgeschlagen")
+    return proc.stdout
+
+
+def secrets_from_stdin():
+    try:
+        return json.loads(sys.stdin.read() or "{}")
+    except ValueError:
+        raise Fail("Ungültige Eingabe")
+
+
+# --------------------------------------------------------------------------- battery
+
+def battery(limit, auto):
+    limit = max(50, min(100, int(limit)))
+    BATTERY_CONF.write_text(
+        "# PrismOS – Akku-Einstellungen (änderbar in „Prism Einstellungen“)\n\n"
+        "# Ladegrenze in Prozent (50–100). 80 schont den Akku, 100 = volle Ladung.\n"
+        f"CHARGE_LIMIT={limit}\n\n"
+        "# Im Akkubetrieb automatisch „Energiesparen“, am Netzteil „Ausgewogen“.\n"
+        f"AUTO_PROFILE={'yes' if auto == 'yes' else 'no'}\n")
+    run(["/usr/lib/prismos/prism-battery", "apply-limit"], check=False)
+    run(["/usr/lib/prismos/prism-battery", "power-changed"], check=False)
+
+
+# --------------------------------------------------------------------------- snapshots
+
+def root_btrfs_device():
+    src = run(["findmnt", "-no", "SOURCE,FSTYPE", "/"]).split()
+    if len(src) < 2 or src[1] != "btrfs":
+        raise Fail("Snapshots gibt es nur, wenn das System mit Btrfs installiert wurde.")
+    return re.sub(r"\[.*\]$", "", src[0])
+
+
+def snapshot_create(description):
+    run(["snapper", "-c", "root", "create", "--cleanup-algorithm", "number",
+         "--userdata", "important=yes", "-d", description])
+
+
+def snapshot_delete(number):
+    run(["snapper", "-c", "root", "delete", str(int(number))])
+
+
+def snapshot_rollback(number):
+    """Replace the root subvolume @ by a writable copy of snapshot NUMBER.
+    The current system is kept as @.vorher-<time> until the next rollback."""
+    number = int(number)
+    device = root_btrfs_device()
+    TOP.mkdir(parents=True, exist_ok=True)
+    run(["mount", "-o", "subvolid=5", device, str(TOP)])
+    try:
+        snap = TOP / "@snapshots" / str(number) / "snapshot"
+        if not snap.is_dir():
+            raise Fail(f"Snapshot {number} wurde nicht gefunden.")
+        for old in TOP.glob("@.vorher-*"):
+            run(["btrfs", "subvolume", "delete", "--recursive", str(old)], check=False)
+        stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        (TOP / "@").rename(TOP / f"@.vorher-{stamp}")
+        run(["btrfs", "subvolume", "snapshot", str(snap), str(TOP / "@")])
+        # Kernels kept outside the root file system (encrypted installs) must match the restored system.
+        if Path("/usr/lib/prismos/prism-esp-sync").exists() and Path("/etc/prismos/esp-boot").exists():
+            run(["/usr/lib/prismos/prism-esp-sync", "--root", str(TOP / "@")], check=False)
+    finally:
+        run(["umount", str(TOP)], check=False)
+
+
+# --------------------------------------------------------------------------- encryption
+
+def crypt_device():
+    src = run(["findmnt", "-no", "SOURCE", "/"]).strip()
+    mapper = re.sub(r"\[.*\]$", "", src)
+    if not mapper.startswith("/dev/mapper/"):
+        raise Fail("Das System ist nicht verschlüsselt.")
+    status = run(["cryptsetup", "status", mapper])
+    m = re.search(r"^\s*device:\s*(\S+)", status, re.M)
+    if not m:
+        raise Fail("Verschlüsselte Partition nicht gefunden.")
+    return mapper.removeprefix("/dev/mapper/"), m.group(1)
+
+
+def load_state():
+    try:
+        return json.loads(CRYPT_STATE.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(state):
+    CRYPT_STATE.parent.mkdir(parents=True, exist_ok=True)
+    CRYPT_STATE.write_text(json.dumps(state, indent=2))
+    os.chmod(CRYPT_STATE, 0o644)  # no secrets inside; lets the app show the status
+
+
+def write_crypttab_and_initramfs():
+    name, device = crypt_device()
+    uuid = run(["blkid", "-s", "UUID", "-o", "value", device]).strip()
+    state = load_state()
+    key = "none"
+    options = ["discard"]
+    if state.get("usb"):
+        key = f"{state['usb']['path']}:UUID={state['usb']['uuid']}"
+        options.append("keyfile-timeout=10s")
+    if state.get("tpm"):
+        options.append("tpm2-device=auto")
+    CRYPTTAB_INITRAMFS.write_text(
+        "# PrismOS – wird von „Prism Einstellungen“ verwaltet\n"
+        f"{name} UUID={uuid} {key} {','.join(options)}\n")
+    run(["mkinitcpio", "-P"])
+    if Path("/etc/prismos/esp-boot").exists():
+        run(["/usr/lib/prismos/prism-esp-sync"], check=False)
+
+
+def keyslots(device):
+    dump = json.loads(run(["cryptsetup", "luksDump", "--dump-json-metadata", device]))
+    return set(dump.get("keyslots", {}).keys())
+
+
+def crypt_status():
+    try:
+        name, device = crypt_device()
+    except Fail:
+        print(json.dumps({"encrypted": False}))
+        return
+    state = load_state()
+    tpm_present = Path("/sys/class/tpm/tpm0").exists()
+    print(json.dumps({"encrypted": True, "device": device, "tpm_available": tpm_present,
+                      "pin": bool(state.get("tpm")), "usb": state.get("usb")}))
+
+
+def crypt_add_pin(data):
+    _, device = crypt_device()
+    if not Path("/sys/class/tpm/tpm0").exists():
+        raise Fail("Dieser Computer hat keinen TPM-Chip, die PIN-Entsperrung ist nicht möglich.")
+    pin = str(data.get("pin", ""))
+    if len(pin) < 4:
+        raise Fail("Die PIN muss mindestens 4 Zeichen lang sein.")
+    run(["systemd-cryptenroll", "--wipe-slot=tpm2", device], check=False)
+    run(["systemd-cryptenroll", "--tpm2-device=auto", "--tpm2-with-pin=yes", "--tpm2-pcrs=7", device],
+        env={"PASSWORD": data.get("password", ""), "NEWPIN": pin})
+    state = load_state()
+    state["tpm"] = True
+    save_state(state)
+    write_crypttab_and_initramfs()
+
+
+def crypt_remove_pin():
+    _, device = crypt_device()
+    run(["systemd-cryptenroll", "--wipe-slot=tpm2", device])
+    state = load_state()
+    state.pop("tpm", None)
+    save_state(state)
+    write_crypttab_and_initramfs()
+
+
+def crypt_add_usb(partition, data):
+    _, device = crypt_device()
+    if not re.fullmatch(r"/dev/[A-Za-z0-9/_-]+", partition):
+        raise Fail("Ungültiges Gerät")
+    fs_uuid = run(["blkid", "-s", "UUID", "-o", "value", partition]).strip()
+    if not fs_uuid:
+        raise Fail("Der USB-Stick hat kein Dateisystem. Bitte zuerst formatieren (z. B. FAT32).")
+    keyname = f"/prismos-{secrets.token_hex(4)}.key"
+    with tempfile.TemporaryDirectory() as mnt:
+        run(["mount", partition, mnt])
+        try:
+            keyfile = Path(mnt + keyname)
+            keyfile.write_bytes(secrets.token_bytes(4096))
+            before = keyslots(device)
+            run(["cryptsetup", "luksAddKey", "--key-file=-", device, str(keyfile)],
+                input_text=data.get("password", ""))
+            slot = sorted(keyslots(device) - before)
+        finally:
+            run(["umount", mnt], check=False)
+    state = load_state()
+    state["usb"] = {"uuid": fs_uuid, "path": keyname, "slot": slot[0] if slot else None}
+    save_state(state)
+    write_crypttab_and_initramfs()
+
+
+def crypt_remove_usb(data):
+    _, device = crypt_device()
+    state = load_state()
+    usb = state.get("usb")
+    if not usb:
+        raise Fail("Es ist kein USB-Stick eingerichtet.")
+    if usb.get("slot") is not None:
+        run(["cryptsetup", "luksKillSlot", "--key-file=-", device, str(usb["slot"])],
+            input_text=data.get("password", ""))
+    state.pop("usb", None)
+    save_state(state)
+    write_crypttab_and_initramfs()
+
+
+def crypt_change_password(data):
+    _, device = crypt_device()
+    new = str(data.get("new", ""))
+    if len(new) < 6:
+        raise Fail("Das neue Passwort muss mindestens 6 Zeichen lang sein.")
+    with tempfile.NamedTemporaryFile("w", dir="/run", delete=True) as f:
+        os.chmod(f.name, 0o600)
+        f.write(new)
+        f.flush()
+        run(["cryptsetup", "luksChangeKey", "--key-file=-", device, f.name],
+            input_text=data.get("password", ""))
+
+
+# --------------------------------------------------------------------------- main
+
+def main(argv):
+    if os.geteuid() != 0:
+        print("prism-admin muss als root laufen (pkexec).", file=sys.stderr)
+        return 1
+    cmd, args = (argv[0], argv[1:]) if argv else ("", [])
+    try:
+        if cmd == "battery":
+            battery(args[0], args[1])
+        elif cmd == "snapshot-create":
+            snapshot_create(" ".join(args) or "Manuell")
+        elif cmd == "snapshot-delete":
+            snapshot_delete(args[0])
+        elif cmd == "snapshot-rollback":
+            snapshot_rollback(args[0])
+        elif cmd == "crypt-status":
+            crypt_status()
+        elif cmd == "crypt-add-pin":
+            crypt_add_pin(secrets_from_stdin())
+        elif cmd == "crypt-remove-pin":
+            crypt_remove_pin()
+        elif cmd == "crypt-add-usb":
+            crypt_add_usb(args[0], secrets_from_stdin())
+        elif cmd == "crypt-remove-usb":
+            crypt_remove_usb(secrets_from_stdin())
+        elif cmd == "crypt-change-password":
+            crypt_change_password(secrets_from_stdin())
+        else:
+            print(__doc__, file=sys.stderr)
+            return 2
+    except (Fail, IndexError, ValueError) as exc:
+        print(str(exc) or "Fehlende Angabe", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

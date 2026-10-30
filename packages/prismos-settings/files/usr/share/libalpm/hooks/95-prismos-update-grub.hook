@@ -1,0 +1,12 @@
+# Add or remove boot menu entries when a kernel is installed or removed
+# (e.g. the LTS kernel that is downloaded after the installation).
+[Trigger]
+Operation = Install
+Operation = Remove
+Type = Path
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Description = Bootmenü wird aktualisiert...
+When = PostTransaction
+Exec = /usr/lib/prismos/prism-update-grub

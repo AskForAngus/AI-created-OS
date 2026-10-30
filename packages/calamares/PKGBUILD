@@ -1,0 +1,39 @@
+# Calamares installer, built for PrismOS (not in the official Arch repositories).
+# Built by scripts/build-iso.sh and only installed on the live medium.
+
+pkgname=calamares
+pkgver=3.3.14
+pkgrel=1
+pkgdesc='Distribution-independent installer framework (PrismOS build)'
+arch=('x86_64')
+url='https://calamares.io'
+license=('GPL-3.0-or-later')
+options=('!debug')
+depends=(
+  'qt6-base' 'qt6-declarative' 'qt6-svg'
+  'kcoreaddons' 'kconfig' 'ki18n' 'kcrash' 'kdbusaddons' 'kpackage' 'libplasma'
+  'kpmcore' 'polkit-qt6' 'yaml-cpp' 'libpwquality' 'python'
+  'squashfs-tools' 'rsync' 'gptfdisk' 'util-linux'
+)
+makedepends=('cmake' 'extra-cmake-modules' 'ninja' 'qt6-tools' 'qt6-translations' 'git')
+source=("https://github.com/calamares/calamares/releases/download/v${pkgver}/calamares-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cmake -S "calamares-${pkgver}" -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DWITH_QT6=ON \
+    -DINSTALL_CONFIG=ON \
+    -DINSTALL_POLKIT=ON \
+    -DBUILD_TESTING=OFF \
+    -DSKIP_MODULES="dracut dracutlukscfg dummycpp dummyprocess dummypython dummypythonqt \
+initramfs initramfscfg interactiveterminal license luksopenswaphookcfg openrcdmcryptcfg \
+plymouthcfg services-openrc tracking webview oemid zfs zfshostid mkinitfs"
+  cmake --build build
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build
+}

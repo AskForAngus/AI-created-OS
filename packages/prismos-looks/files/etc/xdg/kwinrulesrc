@@ -1,0 +1,14 @@
+[General]
+count=1
+rules=prism-looks-picker
+
+[prism-looks-picker]
+Description=Prism Looks: Favoriten in der Bildschirmmitte
+wmclass=prism-looks-picker
+wmclassmatch=2
+placement=5
+placementrule=2
+above=true
+aboverule=2
+skiptaskbar=true
+skiptaskbarrule=2

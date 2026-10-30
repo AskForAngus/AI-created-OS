@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "PrismOS"
+            }
+        ],
+        "Category": "",
+        "Description": "Menüleiste oben mit globalem Menü, schwebendes Dock unten, Fensterknöpfe links.",
+        "Id": "org.prismos.macos.desktop",
+        "License": "GPL-2.0-or-later",
+        "Name": "macOS-Stil",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-APIVersion": "2"
+}

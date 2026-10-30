@@ -1,0 +1,4 @@
+# Die Dateiindizierung kostet Akku und Leistung. Bei Bedarf in den
+# Systemeinstellungen unter "Suche" einschalten.
+[Basic Settings]
+Indexing-Enabled=false

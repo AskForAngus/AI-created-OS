@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Prism Einstellungen
+GenericName=Akku, Snapshots und Sicherheit
+Comment=Ladegrenze, Energieprofil, Snapshots zurücksetzen, PIN oder USB-Stick zum Entsperren
+Exec=/usr/bin/prism-settings
+Icon=prismos
+Categories=Qt;KDE;Settings;System;
+Keywords=Akku;Batterie;Ladegrenze;Snapshot;Backup;Zurücksetzen;Verschlüsselung;PIN;TPM;USB;Secure Boot;

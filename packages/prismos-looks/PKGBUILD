@@ -1,0 +1,16 @@
+# PrismOS looks: the Prism Looks design studio, look presets (Plasma global
+# themes), wallpapers and icons. Generated files come from tools/generate.py.
+
+pkgname=prismos-looks
+pkgver=${PRISMOS_PKGVER:-0.1}
+pkgrel=1
+pkgdesc='PrismOS: Prism Looks, Look-Vorlagen und Hintergrundbilder'
+arch=('any')
+url='https://github.com/AskForAngus/AI-created-OS'
+license=('GPL-3.0-or-later')
+depends=('python' 'python-pyqt6' 'plasma-workspace' 'kconfig')
+optdepends=('kvantum: Qt-Themes für einige Looks' 'spectacle: Vorschaubilder für eigene Looks')
+
+package() {
+  cp -dr --no-preserve=ownership "$startdir/files/." "$pkgdir/"
+}

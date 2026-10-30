@@ -1,0 +1,19 @@
+# PrismOS system settings: performance and battery tuning, services,
+# post-install helpers. Files live in ./files and are installed as they are.
+
+pkgname=prismos-settings
+pkgver=${PRISMOS_PKGVER:-0.1}
+pkgrel=1
+pkgdesc='PrismOS: Systemeinstellungen für Leistung, Akku und Updates'
+arch=('any')
+url='https://github.com/AskForAngus/AI-created-OS'
+license=('GPL-3.0-or-later')
+depends=('python' 'python-pyqt6' 'polkit' 'reflector' 'zram-generator' 'power-profiles-daemon' 'flatpak' 'pacman-contrib' 'glib2'
+         'networkmanager' 'iputils' 'plasma5support')
+optdepends=('kscreen: Gaming-Modus stellt die höchste Bildwiederholrate ein')
+backup=('etc/xdg/kdeglobals' 'etc/xdg/baloofilerc' 'etc/makepkg.conf.d/10-prismos.conf' 'etc/prismos/battery.conf')
+install=prismos-settings.install
+
+package() {
+  cp -dr --no-preserve=ownership "$startdir/files/." "$pkgdir/"
+}

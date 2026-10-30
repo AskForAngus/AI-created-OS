@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "PrismOS"
+            }
+        ],
+        "Category": "",
+        "Description": "Große, abgerundete Leiste unten mit zentrierten Apps und moderner Glasoptik.",
+        "Id": "org.prismos.deepin.desktop",
+        "License": "GPL-2.0-or-later",
+        "Name": "Deepin-Stil",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-APIVersion": "2"
+}

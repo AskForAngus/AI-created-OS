@@ -1,0 +1,10 @@
+# After a GRUB update: keep PrismOS' boot entries consistent.
+[Trigger]
+Operation = Upgrade
+Type = Package
+Target = grub
+
+[Action]
+Description = Bootmenü nach GRUB-Update prüfen...
+When = PostTransaction
+Exec = /usr/lib/prismos/prism-update-grub

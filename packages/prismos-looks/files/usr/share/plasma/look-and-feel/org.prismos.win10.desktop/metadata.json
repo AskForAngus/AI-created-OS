@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "PrismOS"
+            }
+        ],
+        "Category": "",
+        "Description": "Dunkle Taskleiste über die volle Breite, Startmenü links, helle Fenster.",
+        "Id": "org.prismos.win10.desktop",
+        "License": "GPL-2.0-or-later",
+        "Name": "Windows 10-Stil",
+        "Version": "1.0",
+        "Website": "https://github.com/AskForAngus/AI-created-OS"
+    },
+    "X-Plasma-APIVersion": "2"
+}
