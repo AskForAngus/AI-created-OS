@@ -56,11 +56,23 @@ LTS-Notfallkernel werden dann automatisch installiert, sobald der Computer onlin
 
 ### Secure Boot einschalten (nach der Installation)
 
-1. Im BIOS/UEFI Secure Boot einschalten.
-2. Beim nächsten Start erscheint einmalig ein blauer Bildschirm („Perform MOK management“):
+1. Beim **ersten Neustart nach der Installation** erscheint einmalig ein blauer Bildschirm
+   („Perform MOK management“, nur etwa 10 Sekunden lang – schnell eine Taste drücken):
    **Enroll MOK → Continue → Yes**, dann dein **Passwort** eingeben und **Reboot**.
    (Hast du im Installer kein eigenes Administrator-Passwort vergeben, lautet es einmalig `prismos`.)
-3. Fertig. PrismOS startet ab jetzt mit Secure Boot, auch nach Updates.
+2. Danach im BIOS/UEFI Secure Boot einschalten. Fertig – PrismOS startet ab jetzt mit Secure Boot,
+   auch nach Updates.
+
+**„Verification failed: (0x1A) Security Violation“?** Dann wurde der Schlüssel noch nicht
+eingetragen (blauer Bildschirm verpasst). So holst du es nach:
+
+* **Direkt am Fehlerbildschirm:** **OK** drücken → es öffnet sich die Schlüsselverwaltung →
+  **Enroll key from disk** → die EFI-Partition wählen → `EFI` → `PrismOS` →
+  `PrismOS-Schluessel.cer` → **Continue → Yes → Reboot**.
+* **Ältere Installationen ohne diese Datei:** Secure Boot im BIOS kurz ausschalten, PrismOS starten
+  und im Terminal `sudo mokutil --import /etc/prismos/secureboot/MOK.cer` eingeben (ein
+  Einmal-Passwort festlegen). Neu starten, im blauen Bildschirm wie oben bestätigen, danach
+  Secure Boot wieder einschalten.
 
 ## Nach der Installation
 

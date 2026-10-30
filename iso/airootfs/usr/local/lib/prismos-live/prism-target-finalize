@@ -160,6 +160,9 @@ if [ "$uefi" = yes ]; then
         else
             log "keine EFI-Variablen erreichbar, Start über den Fallback-Pfad"
         fi
+        # The public key also goes on the EFI partition: if the enrolment screen was missed,
+        # MokManager can enrol it from there ("Enroll key from disk").
+        install -m644 "$keys/MOK.cer" "$efi/PrismOS/PrismOS-Schluessel.cer"
         # Ask the firmware to enrol the key at the next start (password = root password).
         if ! mokutil --import "$keys/MOK.cer" --root-pw 2>/dev/null; then
             # no root password: one-time password "prismos" for the blue enrolment screen
