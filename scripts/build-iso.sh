@@ -70,6 +70,9 @@ if [[ -n ${PRISMOS_SIGNING_KEY:-} ]]; then
     mkdir -p "$kr"
     gpg --batch --export "$FPR" > "$kr/prismos.gpg"
     echo "$FPR:4:" > "$kr/prismos-trusted"
+    # mkarchiso verifies the signed packages against this container's keyring
+    pacman-key --add "$kr/prismos.gpg"
+    pacman-key --lsign-key "$FPR"
     : > "$kr/prismos-revoked"
     cat > "$kr/PKGBUILD" <<'PKG'
 pkgname=prismos-keyring
