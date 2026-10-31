@@ -339,7 +339,7 @@ def main():
                 pl.addWidget(QLabel("Dieser Computer hat keinen TPM-Chip – PIN-Entsperrung ist nicht möglich."))
             else:
                 pl.addWidget(QLabel("Eingerichtet ✓" if st["pin"] else "Nicht eingerichtet"))
-                note = QLabel("Wenn du Secure Boot ein- oder ausschaltest oder das BIOS aktualisierst, fragt "
+                note = QLabel("Nach einem BIOS-Update oder geänderten Sicherheitseinstellungen im BIOS fragt "
                               "PrismOS beim nächsten Start nach dem Passwort. Richte die PIN danach einfach neu ein.")
                 note.setWordWrap(True)
                 note.setEnabled(False)

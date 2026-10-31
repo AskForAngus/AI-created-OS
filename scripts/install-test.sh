@@ -2,7 +2,7 @@
 # Simulated installation of a PrismOS ISO onto a virtual disk.
 #   bios: MBR, ext4, GRUB for BIOS, Firefox from the internet
 #   uefi: GPT, encrypted (LUKS2, password "prismos") Btrfs with snapshots,
-#         kernels on the EFI partition, shim + signed GRUB (Secure Boot)
+#         kernels on the EFI partition, GRUB with boot entry and fallback path
 #
 # Calamares itself cannot be driven headlessly, so this script performs the same
 # steps its modules do (partition, unpack, users, services, display manager) and
@@ -153,7 +153,7 @@ if [[ $MODE == bios ]]; then
     grep -E "^menuentry|^submenu" "$TARGET/boot/grub/grub.cfg"
     grep -q "linux-lts" "$TARGET/boot/grub/grub.cfg" || { echo "LTS-Kernel fehlt im Bootmenü" >&2; exit 1; }
     in_target env PRISMOS_FORCE_UEFI=0 /usr/local/lib/prismos-live/prism-target-finalize
-    ! in_target pacman -Q snapper shim-signed 2>/dev/null || { echo "Snapshot-/Secure-Boot-Pakete auf ext4/BIOS übrig" >&2; exit 1; }
+    ! in_target pacman -Q snapper 2>/dev/null || { echo "Snapshot-Pakete auf ext4 übrig" >&2; exit 1; }
 else
     # serial console so the boot test can see the passphrase prompt
     sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="console=tty0 console=ttyS0,115200 /' \
@@ -161,20 +161,14 @@ else
     echo 'GRUB_ENABLE_CRYPTODISK=y' >> "$TARGET/etc/default/grub"  # what Calamares' grubcfg does for encryption
     in_target grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=PrismOS --no-nvram
     in_target grub-mkconfig -o /boot/grub/grub.cfg
-    log "prism-target-finalize (Snapshots, Verschlüsselung, Secure Boot)"
+    log "prism-target-finalize (Snapshots, Verschlüsselung, Bootloader)"
     in_target env PRISMOS_FORCE_UEFI=1 /usr/local/lib/prismos-live/prism-target-finalize
     log "Ergebnis prüfen"
     ls -l "$TARGET"/boot/efi/EFI/PrismOS "$TARGET"/boot/efi/EFI/BOOT "$TARGET"/boot/efi/prismos
-    in_target sbverify --cert /etc/prismos/secureboot/MOK.crt /boot/efi/EFI/PrismOS/grubx64.efi
-    in_target sbverify --cert /etc/prismos/secureboot/MOK.crt /boot/efi/prismos/vmlinuz-linux-zen
-    [[ $(sha256sum < "$TARGET/etc/prismos/secureboot/MOK.cer") == \
-       $(sha256sum < "$TARGET/boot/efi/EFI/PrismOS/PrismOS-Schluessel.cer") ]] ||
-        { echo "PrismOS-Schlüssel fehlt auf der EFI-Partition" >&2; exit 1; }
-    echo "SBAT in GRUB: $(grep -a -o 'grub,[0-9]*,Free Software Foundation' "$TARGET/boot/efi/EFI/PrismOS/grubx64.efi" | head -1)"
-    ! grep -q "does not match the build-time" "$TARGET/etc/prismos/secureboot/grub-install.log" ||
-        grep -aq "grub,$(sed -n 's/.*build-time Global SBAT level \([0-9]*\).*/\1/p' \
-            "$TARGET/etc/prismos/secureboot/grub-install.log" | head -1),Free" "$TARGET/boot/efi/EFI/PrismOS/grubx64.efi" ||
-        { echo "GRUB trägt die falsche SBAT-Stufe" >&2; exit 1; }
+    [[ -s $TARGET/boot/efi/EFI/PrismOS/grubx64.efi && -s $TARGET/boot/efi/EFI/BOOT/BOOTX64.EFI ]] ||
+        { echo "GRUB fehlt auf der EFI-Partition" >&2; exit 1; }
+    [[ ! -e $TARGET/boot/efi/EFI/PrismOS/shimx64.efi && ! -e $TARGET/etc/prismos/secureboot ]] ||
+        { echo "Secure-Boot-Reste gefunden" >&2; exit 1; }
     cat "$TARGET/etc/crypttab.initramfs"
     grep -E "^menuentry" "$TARGET/boot/efi/grub/grub.cfg"
     grep -q "LTS-Notfallkernel" "$TARGET/boot/efi/grub/grub.cfg" || { echo "LTS-Eintrag fehlt" >&2; exit 1; }

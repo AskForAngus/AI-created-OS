@@ -55,7 +55,6 @@ build_pkg calamares --syncdeps --needed
 # PrismOS' own packages only contain files; their dependencies are installed with the ISO.
 build_pkg prismos-settings --nodeps
 build_pkg prismos-looks --nodeps
-build_pkg shim-signed --nodeps
 
 # Signed PrismOS repository for updates (only with a signing key, see README).
 if [[ -n ${PRISMOS_SIGNING_KEY:-} ]]; then

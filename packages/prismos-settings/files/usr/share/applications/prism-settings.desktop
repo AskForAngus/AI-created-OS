@@ -6,4 +6,4 @@ Comment=Ladegrenze, Energieprofil, Snapshots zurücksetzen, PIN oder USB-Stick z
 Exec=/usr/bin/prism-settings
 Icon=prismos
 Categories=Qt;KDE;Settings;System;
-Keywords=Akku;Batterie;Ladegrenze;Snapshot;Backup;Zurücksetzen;Verschlüsselung;PIN;TPM;USB;Secure Boot;
+Keywords=Akku;Batterie;Ladegrenze;Snapshot;Backup;Zurücksetzen;Verschlüsselung;PIN;TPM;USB;

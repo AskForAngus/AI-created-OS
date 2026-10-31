@@ -91,7 +91,7 @@ jobs:
           bash scripts/boot-test.sh --disk /mnt/prismos/install-test/disk.img "$RUNNER_TEMP/boot-test"
           sudo rm -f /mnt/prismos/install-test/disk.img
 
-      - name: Verschlüsselte UEFI-Installation simulieren und booten (Btrfs, Snapshots, Secure Boot)
+      - name: Verschlüsselte UEFI-Installation simulieren und booten (Btrfs, Snapshots)
         if: always()
         run: |
           sudo docker run --rm --privileged -v /dev:/dev -v /mnt/prismos:/mnt/prismos \

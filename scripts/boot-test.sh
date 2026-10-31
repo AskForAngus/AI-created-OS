@@ -6,8 +6,7 @@
 #   scripts/boot-test.sh ISO [OUT_DIR]
 #   scripts/boot-test.sh --disk DISK_IMAGE [OUT_DIR]   boot an installed system (BIOS)
 #   scripts/boot-test.sh --uefi-disk DISK_IMAGE [OUT_DIR]
-#       boot an encrypted UEFI install: types the disk password when asked,
-#       then boots once more with Secure Boot enabled (shim should start)
+#       boot an encrypted UEFI install: types the disk password when asked
 #
 # Needs: qemu-system-x86_64, socat, ImageMagick, OVMF (for UEFI).
 set -uo pipefail
@@ -131,29 +130,6 @@ boot_uefi_disk() {
         echo "BOOT-UEFI-VERSCHLÜSSELT: Festplatte entsperrt, System gestartet"
     else
         echo "BOOT-UEFI-VERSCHLÜSSELT: Start fehlgeschlagen"
-    fi
-
-    # Same disk with Secure Boot on (Microsoft keys enrolled): firmware must start
-    # shim, which asks to enrol PrismOS' key (MokManager) because it is not trusted yet.
-    local sb_code sb_vars
-    sb_code=$(ls /usr/share/OVMF/OVMF_CODE_4M.secboot.fd 2>/dev/null)
-    sb_vars=$(ls /usr/share/OVMF/OVMF_VARS_4M.ms.fd 2>/dev/null)
-    if [[ -n $sb_code && -n $sb_vars ]]; then
-        cp "$sb_vars" /tmp/prismos-vars-sb.fd
-        rm -f "$mon"
-        echo "== Boot-Test mit Secure Boot =="
-        qemu-system-x86_64 "${accel[@]}" -machine q35,smm=on -global driver=cfi.pflash01,property=secure,value=on \
-            -m 2048 -vga virtio -display none \
-            -drive "if=pflash,format=raw,unit=0,readonly=on,file=$sb_code" \
-            -drive "if=pflash,format=raw,unit=1,file=/tmp/prismos-vars-sb.fd" \
-            -drive "file=$UEFI_DISK,format=raw,if=virtio" -monitor "unix:$mon,server,nowait" &
-        pid=$!
-        sleep 25
-        shot "$mon" "installiert-uefi-4-secureboot"
-        kill "$pid" 2>/dev/null
-        wait "$pid" 2>/dev/null
-    else
-        echo "OVMF mit Secure Boot nicht gefunden, Test übersprungen"
     fi
 }
 

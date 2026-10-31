@@ -13,7 +13,7 @@ Nötigste. Alles andere wählst du bei der Installation selbst aus.
 | **Jeder Look möglich** | Mit *Prism Looks* wechselst du per Klick zwischen 14 Vorlagen: PrismOS, Windows 11, 10, 7 und XP, macOS, Ubuntu, GNOME, Elementary, Deepin, ChromeOS, Holz, Nord und Minimal. Leisten und Docks passt du mit Schiebereglern an. Eigene Looks speicherst du und teilst sie als `.prismlook`-Datei. Lieblings-Looks markierst du mit einem Stern und wechselst mit **Meta+Umschalt+L** in einem kleinen Fenster schnell zwischen ihnen. Auf Wunsch wechselt das System automatisch zwischen hell und dunkel. Den Look wählst du schon im Installer. |
 | **Keine Bloatware** | Vorinstalliert sind nur der Desktop, Dateimanager, Terminal, Texteditor, Archivprogramm, Screenshot-Werkzeug und das Software-Center. Alle weiteren Programme kreuzt du im Installer an, standardmäßig ist nichts ausgewählt. |
 | **Programmauswahl im Installer** | Browser, Kommunikation, Office, Medien, Entwicklung, System-Werkzeuge und Design-Extras, aus den Arch-Paketquellen oder von Flathub. Sprachpakete (z. B. Firefox auf Deutsch) kommen automatisch dazu. Flatpaks installieren sich nach dem ersten Start im Hintergrund, eine Benachrichtigung meldet, wenn sie fertig sind. |
-| **Läuft auf jeder 64-Bit-Hardware** | BIOS und UEFI, auch mit eingeschaltetem **Secure Boot** auf installierten Systemen. Unterstützt Intel-, AMD- und NVIDIA-Grafik, Laptops und Desktops sowie virtuelle Maschinen. NVIDIA-Karten (ab GTX 16xx/RTX) und virtuelle Maschinen werden erkannt, die passenden Treiber installiert. |
+| **Läuft auf jeder 64-Bit-Hardware** | BIOS und UEFI. Unterstützt Intel-, AMD- und NVIDIA-Grafik, Laptops und Desktops sowie virtuelle Maschinen. NVIDIA-Karten (ab GTX 16xx/RTX) und virtuelle Maschinen werden erkannt, die passenden Treiber installiert. |
 | **Akku & Leistung** | Zen-Kernel für flüssiges Arbeiten (LTS-Kernel als Notfall im Bootmenü). **Ladegrenze 80 %** (abschaltbar), im Akkubetrieb automatisch „Energiesparen“. Dazu zram statt Swap-Datei, Audio- und WLAN-Stromsparen, passende I/O-Scheduler, keine Hintergrund-Indizierung, kein Watchdog. |
 | **Gaming-Modus** | Ein Controller-Knopf in der Leiste lädt die besten Einstellungen zum Spielen: volle Leistung, keine Benachrichtigungen und keine Hintergrund-Wartung, höchste Bildwiederholrate mit Adaptive Sync. Ein zweiter Klick stellt alles wieder her. |
 | **Netzwerk auf einen Blick** | Ein Klick auf das Netzwerk-Symbol zeigt alle Verbindungsdaten: IP-Adressen, Gateway, DNS, MAC, WLAN-Signal, Kanal, aktuelle Datenrate. Auf Knopfdruck auch öffentliche IP mit Anbieter, Ping und Geschwindigkeitstest. |
@@ -36,7 +36,7 @@ Prüfen (optional): `sha256sum -c prismos-*.iso.sha256`
 
 Jeder Build startet die ISO in einer virtuellen Maschine (BIOS und UEFI). Außerdem spielt er
 zwei Installationen nach und startet beide Ergebnisse: eine einfache mit BIOS und eine
-verschlüsselte mit UEFI, Btrfs-Snapshots und Secure Boot. Die Screenshots liegen im Artefakt
+verschlüsselte mit UEFI und Btrfs-Snapshots. Die Screenshots liegen im Artefakt
 **boot-test-screenshots**.
 
 ## Installieren
@@ -44,8 +44,8 @@ verschlüsselte mit UEFI, Btrfs-Snapshots und Secure Boot. Die Screenshots liege
 1. ISO auf einen USB-Stick schreiben (mindestens 4 GB), z. B. mit
    [Ventoy](https://www.ventoy.net), [balenaEtcher](https://etcher.balena.io) oder unter Linux mit
    `sudo dd if=prismos-….iso of=/dev/sdX bs=4M status=progress oflag=sync`.
-2. Vom USB-Stick starten. Für den **USB-Stick** muss Secure Boot ausgeschaltet sein. Das
-   installierte System unterstützt es, du kannst es danach wieder einschalten (siehe unten).
+2. Im BIOS/UEFI **Secure Boot ausschalten** (PrismOS nutzt es nicht, es bleibt dauerhaft aus)
+   und vom USB-Stick starten.
 3. Die Live-Sitzung startet und der Installer öffnet sich automatisch. Für die Programmauswahl
    am besten vorher über das Netzwerk-Symbol unten rechts mit dem Internet verbinden.
 4. Durch den Installer klicken: Sprache → Zeitzone → Tastatur → Festplatte (hier optional
@@ -54,25 +54,8 @@ verschlüsselte mit UEFI, Btrfs-Snapshots und Secure Boot. Die Screenshots liege
 Ohne Internet funktioniert die Installation auch. Die ausgewählten Programme und der
 LTS-Notfallkernel werden dann automatisch installiert, sobald der Computer online ist.
 
-### Secure Boot einschalten (nach der Installation)
-
-1. Beim **ersten Neustart nach der Installation** erscheint einmalig ein blauer Bildschirm
-   („Perform MOK management“, nur etwa 10 Sekunden lang – schnell eine Taste drücken):
-   **Enroll MOK → Continue → Yes**, dann dein **Passwort** eingeben und **Reboot**.
-   (Hast du im Installer kein eigenes Administrator-Passwort vergeben, lautet es einmalig `prismos`.)
-2. Danach im BIOS/UEFI Secure Boot einschalten. Fertig – PrismOS startet ab jetzt mit Secure Boot,
-   auch nach Updates.
-
-**„Verification failed: (0x1A) Security Violation“?** Dann wurde der Schlüssel noch nicht
-eingetragen (blauer Bildschirm verpasst). So holst du es nach:
-
-* **Direkt am Fehlerbildschirm:** **OK** drücken → es öffnet sich die Schlüsselverwaltung →
-  **Enroll key from disk** → die EFI-Partition wählen → `EFI` → `PrismOS` →
-  `PrismOS-Schluessel.cer` → **Continue → Yes → Reboot**.
-* **Ältere Installationen ohne diese Datei:** Secure Boot im BIOS kurz ausschalten, PrismOS starten
-  und im Terminal `sudo mokutil --import /etc/prismos/secureboot/MOK.cer` eingeben (ein
-  Einmal-Passwort festlegen). Neu starten, im blauen Bildschirm wie oben bestätigen, danach
-  Secure Boot wieder einschalten.
+**Meldung „Verification failed: (0x1A) Security Violation“ beim Start?** Dann ist Secure Boot
+eingeschaltet. Im BIOS/UEFI ausschalten, danach startet PrismOS normal.
 
 ## Nach der Installation
 
@@ -100,11 +83,10 @@ eingetragen (blauer Bildschirm verpasst). So holst du es nach:
 
 ```
 packages/
-  prismos-settings/       Systemeinstellungen, Akku, Snapshots, Verschlüsselung, Secure Boot,
+  prismos-settings/       Systemeinstellungen, Akku, Snapshots, Verschlüsselung,
                           „Prism Einstellungen“ (files/ wird so installiert)
   prismos-looks/          Prism Looks, Look-Vorlagen, Farbschemata, Hintergründe
   calamares/              der Installer (nicht in den Arch-Paketquellen)
-  shim-signed/            von Microsoft signierter shim für Secure Boot
 iso/                      archiso-Profil des Live-/Installationsmediums
   packages.x86_64         Pakete der Grundinstallation (alles kommentiert)
   airootfs/etc/calamares/ Installer: Ablauf, Programmliste (netinstall.yaml), Branding
