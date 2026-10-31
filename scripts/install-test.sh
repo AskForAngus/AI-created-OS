@@ -167,7 +167,9 @@ else
     ls -l "$TARGET"/boot/efi/EFI/PrismOS "$TARGET"/boot/efi/EFI/BOOT "$TARGET"/boot/efi/prismos
     in_target sbverify --cert /etc/prismos/secureboot/MOK.crt /boot/efi/EFI/PrismOS/grubx64.efi
     in_target sbverify --cert /etc/prismos/secureboot/MOK.crt /boot/efi/prismos/vmlinuz-linux-zen
-    cmp "$TARGET/etc/prismos/secureboot/MOK.cer" "$TARGET/boot/efi/EFI/PrismOS/PrismOS-Schluessel.cer"
+    [[ $(sha256sum < "$TARGET/etc/prismos/secureboot/MOK.cer") == \
+       $(sha256sum < "$TARGET/boot/efi/EFI/PrismOS/PrismOS-Schluessel.cer") ]] ||
+        { echo "PrismOS-Schlüssel fehlt auf der EFI-Partition" >&2; exit 1; }
     echo "SBAT in GRUB: $(grep -a -o 'grub,[0-9]*,Free Software Foundation' "$TARGET/boot/efi/EFI/PrismOS/grubx64.efi" | head -1)"
     ! grep -q "does not match the build-time" "$TARGET/etc/prismos/secureboot/grub-install.log" ||
         grep -aq "grub,$(sed -n 's/.*build-time Global SBAT level \([0-9]*\).*/\1/p' \
